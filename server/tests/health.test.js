@@ -20,8 +20,15 @@ test('GET /api/v1/health → 200 + {code:0}', async () => {
   assert.ok(res.body.data.now);
 });
 
-test('未知路由 → 404 + {code:9001} 统一响应包', async () => {
+test('未知业务路由：无 token 先被鉴权拦下（401 统一响应包）', async () => {
   const res = await request(app).get('/api/v1/no-such-route');
+  assert.equal(res.status, 401);
+  assert.equal(res.body.code, 9001);
+  assert.equal(res.body.data, null);
+});
+
+test('API 前缀之外的未知路由 → 404 + {code:9001} 统一响应包', async () => {
+  const res = await request(app).get('/no-such-route');
   assert.equal(res.status, 404);
   assert.equal(res.body.code, 9001);
   assert.equal(res.body.data, null);
