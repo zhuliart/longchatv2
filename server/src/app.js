@@ -5,7 +5,7 @@ import pinoHttp from 'pino-http';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
-import healthRouter from './routes/health.js';
+import apiRouter from './routes/index.js';
 
 export function createApp() {
   const app = express();
@@ -17,8 +17,8 @@ export function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url.includes('/health') } }));
 
-  // 业务路由统一挂载在 /api/v1 下（后续里程碑在此追加）
-  app.use('/api/v1/health', healthRouter);
+  // 业务路由统一挂载在 /api/v1 下（路由总装见 routes/index.js）
+  app.use('/api/v1', apiRouter);
 
   app.use(notFound);
   app.use(errorHandler);
