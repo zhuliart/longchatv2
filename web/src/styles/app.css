@@ -1,0 +1,18 @@
+/* ============================================================
+   app.css — M5 生产壳层粘合样式（只做布局承载，不改设计令牌）
+   styles.css / desktop.css 为像素基准原样迁移，此处仅补：
+   1) 桌面宽度下注册引导的居中承载（桌面原型未设计该屏，用移动屏居中呈现）
+   2) 移动伪状态栏在桌面承载容器中隐藏
+   ============================================================ */
+
+.dsk-onboard {
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  background: var(--color-bg);
+}
+.dsk-onboard .page {
+  max-width: 560px;
+  width: 100%;
+}
+.dsk-onboard .statusbar { display: none; }
