@@ -60,12 +60,19 @@ export const config = {
     akId: env.ALI_GREEN_AK_ID || '',
     akSecret: env.ALI_GREEN_AK_SECRET || '',
     region: env.ALI_GREEN_REGION || 'cn-shanghai',
+    // 文本审核增强版的业务场景 service code，须与控制台开通的服务一致
+    service: env.ALI_GREEN_SERVICE || 'comment_detection_pro',
+    // 默认按 region 拼接官方 endpoint；可覆盖（内网 VPC endpoint / 测试 mock）
+    endpoint: env.ALI_GREEN_ENDPOINT || '',
+    timeoutMs: int('ALI_GREEN_TIMEOUT_MS', 3000),
     failOpen: env.MODERATION_FAIL_OPEN !== 'false',
   },
   ai: {
     provider: env.AI_PROVIDER || 'dashscope',
     dashscopeApiKey: env.DASHSCOPE_API_KEY || '',
+    dashscopeBaseUrl: env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     anthropicApiKey: env.ANTHROPIC_API_KEY || '',
+    model: env.AI_MODEL || '', // 空则用各 provider 默认（dashscope: qwen-plus / anthropic: claude-opus-4-8）
     dailyLimit: int('AI_DAILY_LIMIT', 20),
     timeoutMs: int('AI_TIMEOUT_MS', 8000),
   },

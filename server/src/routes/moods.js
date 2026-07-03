@@ -3,6 +3,7 @@ import { ok, ERR, AppError } from '../utils/response.js';
 import { countWords } from '../utils/countWords.js';
 import { asObjectId, ymd, isYmd } from '../utils/listing.js';
 import { Mood, Letter, EMOTIONS, VISIBILITIES } from '../models/index.js';
+import { assertClean } from '../services/moderation.js';
 
 const router = Router();
 
@@ -50,7 +51,7 @@ router.get('/memory-today', async (req, res, next) => {
 /**
  * 记录/更新心情（契约 §6）：date 天然幂等 upsert；服务端校验 :date ≤ 今天，
  * 且仅「今天」可写全量内容 —— 往日只能走 visibility 接口（与原型交互一致）。
- * 日记审核在 M4 挂接（T4.1 挂接点：saveMood(diary)）。
+ * 日记（若填）落库前过内容审核（T4.1 挂接点：saveMood(diary)）。
  */
 router.put('/:date', async (req, res, next) => {
   try {
@@ -71,15 +72,18 @@ router.put('/:date', async (req, res, next) => {
     const visibility = req.body?.visibility ?? 'private';
     if (!VISIBILITIES.includes(visibility)) throw new AppError(ERR.BAD_REQUEST, '可见性不合法');
     const diary = String(req.body?.diary || '');
+    let moderation = null;
     if (diary) {
       const n = countWords(diary);
       if (n < 30) throw new AppError(ERR.WORD_COUNT, `日记至少需要30字，当前${n}字`);
+      moderation = await assertClean(diary, 'mood_diary');
     }
 
     // upsert：同人同日唯一索引兜底；save() 走 Schema 校验 + feeling 词表软校验日志
     let mood = await Mood.findOne({ uid: req.uid, date });
     if (!mood) mood = new Mood({ uid: req.uid, date });
     mood.set({ emotion, intensity, feeling, visibility, diary });
+    mood.moderation = moderation || undefined; // 覆盖写入：旧标记随旧日记一并失效
     await mood.save();
 
     res.json(

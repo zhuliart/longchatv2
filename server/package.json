@@ -11,9 +11,13 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "seed": "node src/scripts/seed.js",
+    "job:match": "node src/scripts/runJob.js dailyMatch",
+    "job:memory": "node src/scripts/runJob.js memoryToday",
+    "job:inactivity": "node src/scripts/runJob.js inactivityCheck",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -22,6 +26,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.9.5",
+    "node-cron": "^4.5.0",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0"
   },
