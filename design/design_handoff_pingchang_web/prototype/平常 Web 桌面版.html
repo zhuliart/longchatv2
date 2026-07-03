@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>平常 PingChang · Web 桌面版</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css?v=9" />
+<link rel="stylesheet" href="desktop.css?v=1" />
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#4A3B44"/>
+    <rect x="18" y="30" width="64" height="44" rx="5" fill="#EFE6EA"/>
+    <path d="M18 35 L50 58 L82 35" fill="none" stroke="#9C7B86" stroke-width="3"/>
+    <circle cx="50" cy="54" r="7" fill="#9C7B86"/>
+  </svg>
+</template>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="data.jsx?v=4"></script>
+<script type="text/babel" src="components.jsx?v=6"></script>
+<script type="text/babel" src="desktop-shell.jsx?v=1"></script>
+<script type="text/babel" src="desktop-views.jsx?v=1"></script>
+<script type="text/babel" src="desktop-mail.jsx?v=1"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+const DSK_TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "黛雾",
+  "font": "黑体",
+  "accent": "#9C7B86",
+  "ruled": true,
+  "btnStyle": "柔光",
+  "darkMode": false,
+  "darkScheme": "跟随主题"
+}/*EDITMODE-END*/;
+
+const DSK_THEME_CLASS = { "蜜橘薄荷": "theme-dopamine", "柔彩": "theme-pastel", "黛雾": "theme-mist", "墨绿": "theme-ink", "经典信笺": "", "暮光马戏": "theme-circus", "山野绿意": "theme-meadow", "夏日婚礼": "theme-summer", "夜读": "theme-dusk", "霓虹": "theme-neon" };
+const DSK_DARK_CLASS = { "夜读": "theme-dusk", "暮紫": "theme-wisteria", "极夜": "theme-aurora", "暖灯": "theme-lamp", "霓彩": "theme-candy" };
+const DSK_THEME_ACCENT = { "蜜橘薄荷": "#D44720", "柔彩": "#E79BC6", "黛雾": "#9C7B86", "墨绿": "#1F6F66", "经典信笺": "#C4622D", "暮光马戏": "#C0392B", "山野绿意": "#B5654A", "夏日婚礼": "#E08A6E", "夜读": "#E08A4E", "霓虹": "#FF4D9D" };
+
+function App() {
+  const [t, setTweak] = useTweaks(DSK_TWEAK_DEFAULTS);
+  const [authed, setAuthed] = useState(true);
+  const [view, setView] = useState("home");           // home | inbox | journey | me | write
+  const [viewParams, setViewParams] = useState({});
+  const [todayMood, setTodayMood] = useState(window.MOODS.find((m) => m.date === "2026-06-04"));
+  const [toastMsg, setToastMsg] = useState(null);
+  const dark = !!t.darkMode;
+
+  function toast(msg) {
+    setToastMsg(msg);
+    clearTimeout(window.__dskToastT);
+    window.__dskToastT = setTimeout(() => setToastMsg(null), 1900);
+  }
+  function go(v, params) { setView(v); setViewParams(params || {}); }
+  function goWrite(params) { go("write", params || {}); }
+  function openLetter(id) { go("inbox", { letter: id }); }
+  function onMoodSaved(m) { setTodayMood(m); toast("情绪已记录 ✦"); }
+  function logout() { setAuthed(false); go("home"); }
+  function loginDone(mode) {
+    setAuthed(true);
+    toast(mode === "register" ? "账号已创建 ✦ 3 步引导见移动端原型" : "欢迎回来，" + ME.nickname + " ✦");
+  }
+
+  const followDark = dark && t.darkScheme === "跟随主题";
+  const darkClass = followDark
+    ? ((DSK_THEME_CLASS[t.theme] || "") + " is-dark")
+    : (DSK_DARK_CLASS[t.darkScheme] || "theme-dusk");
+  const rootClass = "device-screen dsk "
+    + (dark ? darkClass : (DSK_THEME_CLASS[t.theme] || ""))
+    + (t.ruled ? " ruled-on" : "")
+    + (t.btnStyle === "玻璃" ? " glass" : "");
+  const accentVal = (t.accent && t.accent !== "__theme") ? t.accent : undefined;
+  const rootStyle = {
+    "--color-accent": (dark && !followDark) ? undefined : accentVal,
+    "--font-serif": t.font === "黑体" ? 'var(--font-sans)' : '"Noto Serif SC","Songti SC",serif',
+  };
+
+  function renderView() {
+    switch (view) {
+      case "home": return <DHome todayMood={todayMood} onMoodSaved={onMoodSaved} go={go} openLetter={openLetter} toast={toast} />;
+      case "inbox": return <DInbox key={"in-" + (viewParams.letter || "") + (viewParams.tab || "")} initialTab={viewParams.tab} initialLetter={viewParams.letter} goWrite={goWrite} toast={toast} />;
+      case "journey": return <DJourney key={"j-" + (viewParams.date || "")} initialDate={viewParams.date} toast={toast} />;
+      case "me": return <DProfile toast={toast} onLogout={logout} />;
+      case "write": return <DWrite params={viewParams} onBack={() => go("inbox")} toast={toast} />;
+      default: return null;
+    }
+  }
+
+  return (
+    <div className={rootClass} style={rootStyle}>
+      {!authed && <DLogin onDone={loginDone} toast={toast} />}
+      {authed && <DSidebar view={view} go={go} onWrite={() => goWrite({})} />}
+      {authed && <main className="dsk-main">{renderView()}</main>}
+      {toastMsg && <div className="toast">{toastMsg}</div>}
+
+      <TweaksPanel>
+        <TweakSection label="主题与排版" />
+        <TweakSelect label="配色主题" value={t.theme} options={["蜜橘薄荷", "柔彩", "黛雾", "墨绿", "经典信笺", "暮光马戏", "山野绿意", "夏日婚礼", "夜读", "霓虹"]}
+          onChange={(v) => { setTweak("theme", v); setTweak("accent", DSK_THEME_ACCENT[v]); }} />
+        <TweakRadio label="正文字体" value={t.font} options={["衬线", "黑体"]} onChange={(v) => setTweak("font", v)} />
+        <TweakToggle label="信纸横线" value={t.ruled} onChange={(v) => setTweak("ruled", v)} />
+        <TweakRadio label="按钮质感" value={t.btnStyle} options={["柔光", "玻璃"]} onChange={(v) => setTweak("btnStyle", v)} />
+        <TweakSection label="深色模式" />
+        <TweakToggle label="开启深色" value={t.darkMode} onChange={(v) => setTweak("darkMode", v)} />
+        <TweakSelect label="深色方案" value={t.darkScheme} options={["跟随主题", "夜读", "暮紫", "极夜", "暖灯", "霓彩"]}
+          onChange={(v) => { setTweak("darkScheme", v); setTweak("darkMode", true); }} />
+        <TweakSection label="演示" />
+        <TweakToggle label="已登录状态" value={authed} onChange={(v) => { v ? setAuthed(true) : logout(); }} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

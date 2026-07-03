@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>平常 PingChang · 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css?v=9" />
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#5C3D20"/>
+    <rect x="22" y="34" width="56" height="38" rx="4" fill="#EDE0C4"/>
+    <path d="M22 38 L50 56 L78 38" fill="none" stroke="#C4622D" stroke-width="3"/>
+    <circle cx="50" cy="52" r="7" fill="#B5341E"/>
+  </svg>
+</template>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="data.jsx?v=4"></script>
+<script type="text/babel" src="components.jsx?v=6"></script>
+<script type="text/babel" src="screens1.jsx?v=3"></script>
+<script type="text/babel" src="screens2.jsx?v=7"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "黛雾",
+  "font": "黑体",
+  "accent": "#9C7B86",
+  "ruled": true,
+  "animPace": "轻快",
+  "btnStyle": "柔光",
+  "darkMode": false,
+  "darkScheme": "跟随主题"
+}/*EDITMODE-END*/;
+
+const THEME_CLASS = { "蜜橘薄荷": "theme-dopamine", "柔彩": "theme-pastel", "黛雾": "theme-mist", "墨绿": "theme-ink", "经典信笺": "", "暮光马戏": "theme-circus", "山野绿意": "theme-meadow", "夏日婚礼": "theme-summer", "夜读": "theme-dusk", "霓虹": "theme-neon" };
+const DARK_CLASS = { "夜读": "theme-dusk", "暮紫": "theme-wisteria", "极夜": "theme-aurora", "暖灯": "theme-lamp", "霓彩": "theme-candy" };
+const THEME_ACCENT = { "蜜橘薄荷": "#D44720", "柔彩": "#E79BC6", "黛雾": "#9C7B86", "墨绿": "#1F6F66", "经典信笺": "#C4622D", "暮光马戏": "#C0392B", "山野绿意": "#B5654A", "夏日婚礼": "#E08A6E", "夜读": "#E08A4E", "霓虹": "#FF4D9D" };
+const PACE = { "舒缓": 1.6, "标准": 1, "轻快": 0.6 };
+const TAB_KEYS = ["home", "inbox", "journey", "me"];
+const TAB_TITLE = { home: "此刻", inbox: "信箱", journey: "旅程", me: "我的" };
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [authed, setAuthed] = useState(true); // 原型默认已登录；我的页「退出登录」可回到登录页
+  const [tab, setTab] = useState("home");
+  const [stack, setStack] = useState([]); // overlay pages
+  const [moodDone, setMoodDone] = useState(true);
+  const [todayMood, setTodayMood] = useState(window.MOODS.find((m) => m.date === "2026-06-04"));
+  const [toastMsg, setToastMsg] = useState(null);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [tabParams, setTabParams] = useState({});
+  const [tabSeq, setTabSeq] = useState(0);
+  const dark = !!t.darkMode;
+
+  function toast(msg) {
+    setToastMsg(msg);
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => setToastMsg(null), 1800);
+  }
+  function nav(screen, params) {
+    setComposeOpen(false);
+    if (TAB_KEYS.includes(screen)) { setStack([]); setTabParams(params || {}); setTabSeq((n) => n + 1); setTab(screen); return; }
+    setStack((s) => [...s, { screen, params: params || {} }]);
+  }
+  function back() { setStack((s) => s.slice(0, -1)); }
+  function onMoodSaved(m) { setMoodDone(true); setTodayMood(m); toast("情绪已记录 ✦"); }
+  function logout() { setStack([]); setComposeOpen(false); setTab("home"); setAuthed(false); }
+  function loginDone(mode) {
+    setAuthed(true);
+    if (mode === "register") { setStack([{ screen: "onboarding", params: {} }]); toast("账号已创建 ✦"); }
+    else { toast("欢迎回来，" + ME.nickname + " ✦"); }
+  }
+
+  const speed = PACE[t.animPace] || 1;
+
+  function renderTab() {
+    switch (tab) {
+      case "home": return <HomeScreen nav={nav} moodDone={moodDone} todayMood={todayMood} onMoodSaved={onMoodSaved} dark={dark} onToggleDark={() => setTweak("darkMode", !t.darkMode)} />;
+      case "inbox": return <InboxScreen key={"inbox-" + tabSeq} nav={nav} initialTab={tabParams.tab} />;
+      case "journey": return <JourneyScreen key={"journey-" + tabSeq} nav={nav} moods={window.MOODS} initialTab={tabParams.tab} initialDate={tabParams.date} />;
+      case "me": return <MyProfileScreen nav={nav} onLogout={logout} />;
+      default: return null;
+    }
+  }
+  function renderOverlay(item, key) {
+    const p = { key, params: item.params, nav, back, toast, speed };
+    switch (item.screen) {
+      case "write": return <WriteScreen {...p} />;
+      case "detail": return <DetailScreen {...p} />;
+      case "match": return <MatchScreen {...p} />;
+      case "peer": return <PeerProfileScreen {...p} />;
+      case "onboarding": return <OnboardingScreen {...p} />;
+      case "edit": return <EditScreen {...p} />;
+      default: return null;
+    }
+  }
+
+  const followDark = dark && t.darkScheme === "跟随主题";
+  const darkClass = followDark
+    ? ((THEME_CLASS[t.theme] || "") + " is-dark")
+    : (DARK_CLASS[t.darkScheme] || "theme-dusk");
+  const deviceClass = "device-screen " + (dark ? darkClass : (THEME_CLASS[t.theme] || "")) + (t.ruled ? "" : " norule") + (t.btnStyle === "玻璃" ? " glass" : "");
+  const accentVal = (t.accent && t.accent !== "__theme") ? t.accent : undefined;
+  const deviceStyle = {
+    // follow-theme dark keeps the light theme's accent/hue; curated dark presets use their own
+    "--color-accent": (dark && !followDark) ? undefined : accentVal,
+    "--font-serif": t.font === "黑体" ? 'var(--font-sans)' : '"Noto Serif SC","Songti SC",serif',
+  };
+
+  return (
+    <div className="stage">
+      <div className="device">
+        <div className="island" />
+        <div className={deviceClass} style={deviceStyle}>
+          <div className="viewport">
+            {!authed && <LoginScreen onDone={loginDone} toast={toast} />}
+            {authed && renderTab()}
+            {authed && stack.map((item, i) => renderOverlay(item, "ov" + i))}
+            {authed && stack.length === 0 && <ComposeMenu open={composeOpen} onClose={() => setComposeOpen(false)} onPick={nav} />}
+            {toastMsg && <div className="toast">{toastMsg}</div>}
+          </div>
+          {authed && stack.length === 0 && <TabBar active={tab} onChange={(k) => nav(k)} onCompose={() => setComposeOpen((o) => !o)} composeOpen={composeOpen} />}
+        </div>
+      </div>
+
+      <div className="stage-caption"><b>平常 · PingChang</b><br/>情绪慢社交 · 高保真原型</div>
+
+      <TweaksPanel>
+        <TweakSection label="主题与排版" />
+        <TweakSelect label="配色主题" value={t.theme} options={["蜜橘薄荷", "柔彩", "黛雾", "墨绿", "经典信笺", "暮光马戏", "山野绿意", "夏日婚礼", "夜读", "霓虹"]}
+          onChange={(v) => { setTweak("theme", v); setTweak("accent", THEME_ACCENT[v]); }} />
+        <TweakRadio label="正文字体" value={t.font} options={["衬线", "黑体"]} onChange={(v) => setTweak("font", v)} />
+        <TweakColor label="强调色" value={t.accent}
+          options={["#D44720", "#E9A752", "#6BAE94", "#78614D"]} onChange={(v) => setTweak("accent", v)} />
+        <TweakToggle label="信纸横线" value={t.ruled} onChange={(v) => setTweak("ruled", v)} />
+        <TweakRadio label="按钮质感" value={t.btnStyle} options={["柔光", "玻璃"]} onChange={(v) => setTweak("btnStyle", v)} />
+        <TweakSection label="深色模式" />
+        <TweakToggle label="开启深色" value={t.darkMode} onChange={(v) => setTweak("darkMode", v)} />
+        <TweakSelect label="深色方案" value={t.darkScheme} options={["跟随主题", "夜读", "暮紫", "极夜", "暖灯", "霓彩"]}
+          onChange={(v) => { setTweak("darkScheme", v); setTweak("darkMode", true); }} />
+        <TweakSection label="动效" />
+        <TweakRadio label="拆信节奏" value={t.animPace} options={["舒缓", "标准", "轻快"]} onChange={(v) => setTweak("animPace", v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

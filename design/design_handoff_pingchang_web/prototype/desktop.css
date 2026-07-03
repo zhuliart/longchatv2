@@ -1,0 +1,276 @@
+/* ============================================================
+   PingChang 平常 — Desktop Web layout (desktop.css)
+   Loads AFTER styles.css; reuses all tokens & components.
+   Root element: .device-screen.dsk (theme classes apply as-is)
+   ============================================================ */
+
+/* ---------- shell ---------- */
+html, body { height: 100%; }
+body { margin: 0; background: var(--color-bg); }
+.device-screen.dsk {
+  width: 100%; height: 100vh; border-radius: 0;
+  flex-direction: row; overflow: hidden;
+}
+
+/* ---------- sidebar ---------- */
+.dsk-side {
+  flex: 0 0 232px; display: flex; flex-direction: column;
+  border-right: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--color-paper) 55%, var(--color-bg));
+  padding: 26px 14px 18px; gap: 4px; z-index: 20;
+}
+.dsk-brand { display: flex; align-items: center; gap: 12px; padding: 2px 10px 20px; }
+.dsk-brand-seal {
+  width: 42px; height: 42px; border-radius: 10px; flex: 0 0 auto;
+  display: grid; place-items: center; transform: rotate(-4deg);
+  background: var(--color-accent); color: #fff;
+  font-family: var(--font-serif); font-size: 22px; font-weight: 600;
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.35), inset 0 0 0 3.5px var(--color-accent), 0 8px 18px -8px var(--color-accent);
+}
+.dsk-brand-name { font-family: var(--font-serif); font-size: 20px; font-weight: 600; letter-spacing: .18em; color: var(--color-ink); }
+.dsk-brand-sub { font-size: 10.5px; letter-spacing: .08em; color: var(--color-ink-secondary); margin-top: 2px; }
+
+.dsk-write-btn { margin: 0 6px 14px; }
+.dsk-write-btn .btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+.dsk-nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; border-radius: 11px; cursor: pointer;
+  color: var(--color-ink-secondary); font-family: var(--font-serif); font-size: 14.5px;
+  transition: background .16s, color .16s;
+}
+.dsk-nav-item:hover { background: color-mix(in oklab, var(--color-accent) 8%, transparent); }
+.dsk-nav-item.active {
+  background: color-mix(in oklab, var(--color-accent) 14%, transparent);
+  color: var(--color-ink); font-weight: 600;
+}
+.dsk-nav-item.active .dsk-nav-glyph { color: var(--color-accent); }
+.dsk-nav-glyph { width: 20px; text-align: center; font-size: 16px; }
+.dsk-nav-badge {
+  margin-left: auto; min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px;
+  display: grid; place-items: center; font-size: 11px; font-weight: 600;
+  background: var(--color-accent); color: #fff;
+}
+
+.dsk-side-foot { margin-top: auto; }
+.dsk-user-chip {
+  display: flex; align-items: center; gap: 10px; padding: 10px 10px; border-radius: 12px; cursor: pointer;
+  transition: background .16s;
+}
+.dsk-user-chip:hover { background: color-mix(in oklab, var(--color-accent) 8%, transparent); }
+.dsk-user-name { font-family: var(--font-serif); font-size: 14px; font-weight: 600; color: var(--color-ink); }
+.dsk-user-sub { font-size: 11px; color: var(--color-ink-secondary); }
+
+/* ---------- main area ---------- */
+.dsk-main { flex: 1; min-width: 0; overflow-y: auto; position: relative; }
+.dsk-page { max-width: 1180px; margin: 0 auto; padding: 34px 42px 64px; }
+.dsk-head { margin-bottom: 22px; }
+.dsk-title { font-family: var(--font-serif); font-size: 26px; font-weight: 600; color: var(--color-ink); letter-spacing: .04em; }
+.dsk-sub { margin-top: 5px; font-size: 13px; color: var(--color-ink-secondary); font-family: var(--font-serif); }
+.dsk-back {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font-family: var(--font-serif); font-size: 13px; color: var(--color-ink-secondary); margin-bottom: 14px;
+}
+.dsk-back:hover { color: var(--color-accent); }
+
+/* scrollbars */
+.dsk-main::-webkit-scrollbar, .dsk-pane::-webkit-scrollbar { width: 10px; }
+.dsk-main::-webkit-scrollbar-thumb, .dsk-pane::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--color-ink-secondary) 32%, transparent);
+  border-radius: 5px; border: 3px solid transparent; background-clip: content-box;
+}
+
+/* ---------- home (此刻) ---------- */
+.dsk-home { display: grid; grid-template-columns: minmax(0,1fr) 392px; gap: 22px; align-items: start; }
+.dsk-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.dsk-card { padding: 20px 22px; }
+.dsk-card-title { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--color-ink); display: flex; align-items: center; justify-content: space-between; }
+.dsk-card-title .more { font-size: 12.5px; font-weight: 400; color: var(--color-ink-secondary); cursor: pointer; }
+.dsk-card-title .more:hover { color: var(--color-accent); }
+.dsk-mood-done { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.dsk-mood-diary { font-family: var(--font-serif); font-size: 13.5px; line-height: 1.9; color: var(--color-ink); margin-top: 12px; }
+.dsk-memory-quote {
+  margin-top: 12px; padding: 14px 16px; border-radius: 10px;
+  background: color-mix(in oklab, var(--color-paper) 60%, var(--color-card));
+  border: 1px solid var(--hairline);
+  font-family: var(--font-serif); font-size: 13.5px; line-height: 1.9; color: var(--color-ink);
+}
+.dsk-memory-date { margin-top: 9px; font-size: 12px; color: var(--color-ink-secondary); }
+.dsk-side-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.dsk-home .envelope-card { margin: 0; }
+
+/* ---------- mail (信箱双栏) ---------- */
+.dsk-mail { display: grid; grid-template-columns: 384px minmax(0,1fr); gap: 22px; height: calc(100vh - 158px); min-height: 480px; }
+.dsk-pane { overflow-y: auto; padding-right: 4px; }
+.dsk-mail-list { display: flex; flex-direction: column; gap: 10px; }
+.dsk-mail-list .envelope-card { margin: 0; }
+.dsk-mail-item .envelope-card { margin: 0; }
+.dsk-mail-item.active .envelope-card { border-color: color-mix(in oklab, var(--color-accent) 55%, transparent); box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-accent) 45%, transparent), var(--shadow-card); }
+.dsk-mail .seg-tabs { padding: 0 0 12px; }
+
+.dsk-reader { position: relative; overflow-y: auto; }
+.dsk-reader-empty {
+  height: 100%; min-height: 420px; display: grid; place-items: center; text-align: center;
+  color: var(--color-ink-secondary); font-family: var(--font-serif);
+}
+.dsk-reader-empty .glyph { font-size: 44px; opacity: .5; display: block; margin-bottom: 12px; }
+
+/* sealed envelope state */
+.dsk-sealed { min-height: 420px; display: grid; place-items: center; padding: 40px 0; }
+.dsk-sealed-env {
+  position: relative; width: 300px; height: 190px; border-radius: 12px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-paper-edge);
+  box-shadow: var(--shadow-card);
+}
+.dsk-sealed-env::before {
+  content: ""; position: absolute; inset: 0;
+  clip-path: polygon(0 0, 50% 52%, 100% 0);
+  background: color-mix(in oklab, var(--color-paper-edge) 55%, var(--color-paper));
+  border-radius: 12px 12px 0 0;
+}
+.dsk-sealed-seal {
+  position: absolute; left: 50%; top: 84px; transform: translateX(-50%);
+  width: 54px; height: 54px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--color-seal) 80%, #fff), var(--color-seal));
+  color: #fff; display: grid; place-items: center;
+  font-family: var(--font-serif); font-size: 20px; font-weight: 600;
+  box-shadow: 0 6px 16px -6px var(--color-seal), inset 0 0 0 3px rgba(255,255,255,.22);
+}
+.dsk-sealed-meta { text-align: center; margin-top: 18px; font-family: var(--font-serif); color: var(--color-ink-secondary); font-size: 13.5px; }
+.dsk-sealed .btn { margin: 16px auto 0; display: block; }
+
+/* open letter */
+.dsk-letter { padding: 34px 40px 28px; position: relative; }
+.dsk-letter-head { display: flex; align-items: center; gap: 13px; padding-bottom: 16px; border-bottom: 1px solid var(--hairline); }
+.dsk-letter-title { font-family: var(--font-serif); font-size: 20px; font-weight: 600; color: var(--color-ink); }
+.dsk-letter-meta { font-size: 12.5px; color: var(--color-ink-secondary); margin-top: 4px; }
+.dsk-letter-body {
+  margin-top: 6px; padding: 10px 2px 4px;
+  font-family: var(--font-serif); font-size: 15px; line-height: 2.15; color: var(--color-ink);
+  white-space: pre-wrap; text-wrap: pretty;
+}
+.dsk.ruled-on .dsk-letter-body {
+  background-image: linear-gradient(to bottom, transparent 0 31.5px, var(--hairline) 31.5px 32.25px);
+  background-size: 100% 32.25px;
+}
+.dsk-letter-actions { display: flex; gap: 10px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--hairline); }
+
+/* ---------- journey (日历 + 详情并排) ---------- */
+.dsk-journey { display: grid; grid-template-columns: 448px minmax(0,1fr); gap: 22px; align-items: start; }
+.dsk .calendar { margin: 0; }
+.dsk .month-picker { padding: 4px 0 14px; }
+.dsk-journey .cal-cell .num { font-size: 14px; }
+.dsk-journey .cal-cell { border-radius: 12px; }
+.dsk-detail-empty { padding: 40px 0 46px; text-align: center; color: var(--color-ink-secondary); font-family: var(--font-serif); }
+.dsk-journey .trend-detail { background: color-mix(in oklab, var(--color-paper) 45%, var(--color-card)); }
+
+/* plaza grid */
+.dsk-plaza { column-count: 2; column-gap: 18px; }
+.dsk-plaza-card { break-inside: avoid; margin-bottom: 18px; padding: 18px 20px; }
+.dsk-plaza-head { display: flex; align-items: center; gap: 10px; }
+.dsk-plaza-name { font-family: var(--font-serif); font-size: 14.5px; font-weight: 600; color: var(--color-ink); }
+.dsk-plaza-date { font-size: 11.5px; color: var(--color-ink-secondary); }
+.dsk-plaza-diary { font-family: var(--font-serif); font-size: 13.5px; line-height: 1.95; color: var(--color-ink); margin-top: 11px; }
+.dsk-plaza-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.dsk-plaza-cc { font-size: 12px; color: var(--color-ink-secondary); cursor: pointer; font-family: var(--font-serif); }
+.dsk-plaza-cc:hover { color: var(--color-accent); }
+.dsk-plaza-comments { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 9px; }
+.dsk-comment { font-size: 12.5px; line-height: 1.7; color: var(--color-ink); font-family: var(--font-serif); }
+.dsk-comment b { font-weight: 600; }
+.dsk-comment.is-reply { padding-left: 18px; position: relative; }
+.dsk-comment.is-reply::before { content: "↳"; position: absolute; left: 2px; color: var(--color-ink-secondary); }
+.dsk-comment-row { display: flex; gap: 8px; margin-top: 4px; }
+.dsk-comment-row input {
+  flex: 1; border: 1px solid var(--hairline); border-radius: 999px; padding: 7px 13px;
+  font-family: var(--font-serif); font-size: 12.5px; background: var(--color-bg); color: var(--color-ink); outline: none;
+}
+.dsk-comment-row input:focus { border-color: color-mix(in oklab, var(--color-accent) 55%, transparent); }
+
+/* ---------- write (写信) ---------- */
+.dsk-write { display: grid; grid-template-columns: minmax(0,1fr) 316px; gap: 22px; align-items: start; }
+.dsk-write-paper { padding: 30px 36px 24px; }
+.dsk-recipient-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--hairline); }
+.dsk-recipient-label { font-family: var(--font-serif); font-size: 13.5px; color: var(--color-ink-secondary); margin-right: 2px; }
+.dsk-recipient {
+  padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  font-family: var(--font-serif); font-size: 13px; color: var(--color-ink);
+  background: color-mix(in oklab, var(--color-paper) 55%, var(--color-card));
+  border: 1px solid var(--hairline); transition: all .15s;
+}
+.dsk-recipient:hover { border-color: color-mix(in oklab, var(--color-accent) 50%, transparent); }
+.dsk-recipient.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.dsk-recipient.is-new::after { content: "首封"; margin-left: 6px; font-size: 10.5px; opacity: .75; }
+.dsk-write-title {
+  width: 100%; border: 0; outline: none; background: none; margin-top: 16px;
+  font-family: var(--font-serif); font-size: 19px; font-weight: 600; color: var(--color-ink);
+}
+.dsk-write-title::placeholder, .dsk-write-body::placeholder { color: color-mix(in oklab, var(--color-ink-secondary) 62%, transparent); }
+.dsk-write-body {
+  width: 100%; min-height: 380px; border: 0; outline: none; background: none; resize: vertical;
+  margin-top: 8px; font-family: var(--font-serif); font-size: 15px; line-height: 2.15; color: var(--color-ink);
+}
+.dsk.ruled-on .dsk-write-body {
+  background-image: linear-gradient(to bottom, transparent 0 31.5px, var(--hairline) 31.5px 32.25px);
+  background-size: 100% 32.25px;
+}
+.dsk-write-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--hairline); }
+.dsk-wc { font-family: var(--font-serif); font-size: 12.5px; color: var(--color-ink-secondary); }
+.dsk-wc b { color: var(--color-accent); }
+.dsk-wc.ok b { color: var(--m-calm); }
+.dsk-write-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 0; }
+.dsk-ai-title { font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--color-ink); display: flex; align-items: center; gap: 7px; }
+.dsk-ai-sub { font-size: 12px; color: var(--color-ink-secondary); margin-top: 5px; line-height: 1.7; }
+.dsk-ai-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 13px; }
+.dsk-ai-action {
+  display: flex; align-items: center; gap: 8px; padding: 10px 13px; border-radius: 11px; cursor: pointer;
+  border: 1px solid var(--hairline); background: color-mix(in oklab, var(--color-paper) 45%, var(--color-card));
+  font-family: var(--font-serif); font-size: 13px; color: var(--color-ink); transition: all .15s;
+}
+.dsk-ai-action:hover { border-color: color-mix(in oklab, var(--color-accent) 55%, transparent); color: var(--color-accent); }
+.dsk-ai-action[disabled], .dsk-ai-action.busy { opacity: .55; pointer-events: none; }
+.dsk-ai-sug {
+  padding: 11px 13px; border-radius: 11px; cursor: pointer; position: relative;
+  background: color-mix(in oklab, var(--color-accent) 8%, transparent);
+  border: 1px dashed color-mix(in oklab, var(--color-accent) 40%, transparent);
+  font-family: var(--font-serif); font-size: 13px; line-height: 1.8; color: var(--color-ink);
+}
+.dsk-ai-sug:hover { background: color-mix(in oklab, var(--color-accent) 14%, transparent); }
+.dsk-ai-sug::after { content: "点击插入"; position: absolute; right: 10px; bottom: 7px; font-size: 10.5px; color: var(--color-accent); opacity: 0; transition: opacity .15s; }
+.dsk-ai-sug:hover::after { opacity: 1; }
+.dsk-ai-shimmer { height: 46px; border-radius: 11px; background: linear-gradient(100deg, color-mix(in oklab, var(--color-accent) 7%, transparent) 40%, color-mix(in oklab, var(--color-accent) 16%, transparent) 50%, color-mix(in oklab, var(--color-accent) 7%, transparent) 60%); background-size: 200% 100%; animation: dskShimmer 1.2s infinite linear; }
+@keyframes dskShimmer { from { background-position: 120% 0; } to { background-position: -80% 0; } }
+
+/* ---------- profile ---------- */
+.dsk-me { max-width: 760px; }
+.dsk-me .my-header, .dsk-me .my-tags { padding-left: 0; padding-right: 0; }
+
+/* ---------- login ---------- */
+.dsk-login { flex: 1; display: grid; place-items: center; padding: 40px 20px; overflow-y: auto; }
+.dsk-login-box { width: 400px; max-width: 92vw; }
+.dsk-login-box .login-hero { padding: 0 0 28px; }
+.dsk-login-box .login-card { padding: 24px 24px 20px; }
+.dsk-login-foot { text-align: center; font-size: 11px; letter-spacing: .04em; color: var(--color-ink-secondary); opacity: .72; margin-top: 22px; }
+
+/* ---------- toast (reuse .toast but pin to desktop viewport) ---------- */
+.dsk .toast { position: fixed; left: 50%; bottom: 34px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1160px) {
+  .dsk-side { flex-basis: 74px; padding: 22px 10px 16px; }
+  .dsk-brand { justify-content: center; padding: 0 0 18px; }
+  .dsk-brand-text, .dsk-nav-item span.lbl, .dsk-user-chip .dsk-user-text, .dsk-write-btn .btn span.lbl { display: none; }
+  .dsk-nav-item { justify-content: center; padding: 12px 0; }
+  .dsk-nav-badge { position: absolute; transform: translate(14px, -10px); }
+  .dsk-nav-item { position: relative; }
+  .dsk-user-chip { justify-content: center; }
+  .dsk-page { padding: 28px 26px 56px; }
+  .dsk-home { grid-template-columns: 1fr; }
+}
+@media (max-width: 960px) {
+  .dsk-mail { grid-template-columns: 1fr; height: auto; }
+  .dsk-reader { min-height: 0; }
+  .dsk-journey { grid-template-columns: 1fr; }
+  .dsk-write { grid-template-columns: 1fr; }
+  .dsk-plaza { column-count: 1; }
+}
