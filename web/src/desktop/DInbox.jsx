@@ -1,0 +1,102 @@
+/* 桌面信箱（T5.5）：双栏 384px+1fr —— 左=三 Tab+信封卡列表（选中描边高亮）；
+   右=阅读窗（空态 → 火漆信封「拆信」→ 展开信纸 + 回信/归档）。 */
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Avatar } from '../components/primitives.jsx';
+import { EnvelopeCard, DraftCard } from '../components/cards.jsx';
+import { LETTERS, SENT, DRAFTS } from '../mocks/index.js';
+import { useUI } from '../store/ui.jsx';
+
+export function DInbox() {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const initialTab = params.get('tab');
+  const initialLetter = params.get('letter');
+  const { toast } = useUI();
+  const [tab, setTab] = useState(initialTab === 'sent' || initialTab === 'draft' ? initialTab : 'inbox');
+  const [selId, setSelId] = useState(initialLetter || null);
+  const [readIds, setReadIds] = useState([]); // 本次会话里已拆的信
+  const list = tab === 'inbox' ? LETTERS : tab === 'sent' ? SENT : DRAFTS;
+  const sel = list.find((x) => x._id === selId) || null;
+
+  useEffect(() => {
+    if (initialLetter) { setTab('inbox'); setSelId(initialLetter); }
+  }, [initialLetter]);
+
+  const sealed = sel && tab === 'inbox' && sel.status === 'sent' && !readIds.includes(sel._id);
+
+  function goWrite(state) { navigate('/write', { state }); }
+
+  return (
+    <div className="dsk-page">
+      <div className="dsk-head">
+        <div className="dsk-title">信箱</div>
+        <div className="dsk-sub">慢一点，没关系。信会等你。</div>
+      </div>
+      <div className="dsk-mail">
+        <div className="dsk-pane">
+          <div className="seg-tabs">
+            <div className={'seg-tab' + (tab === 'inbox' ? ' active' : '')} onClick={() => { setTab('inbox'); setSelId(null); }}>收件箱</div>
+            <div className={'seg-tab' + (tab === 'sent' ? ' active' : '')} onClick={() => { setTab('sent'); setSelId(null); }}>已发出</div>
+            <div className={'seg-tab' + (tab === 'draft' ? ' active' : '')} onClick={() => { setTab('draft'); setSelId(null); }}>草稿箱</div>
+          </div>
+          <div className="dsk-mail-list">
+            {tab === 'draft'
+              ? DRAFTS.map((d) => (
+                  <div key={d._id} className="dsk-mail-item">
+                    <DraftCard draft={d} onClick={() => goWrite({ draft: d })} />
+                  </div>
+                ))
+              : list.map((l) => (
+                  <div key={l._id} className={'dsk-mail-item' + (sel && sel._id === l._id ? ' active' : '')}>
+                    <EnvelopeCard letter={l} sent={tab === 'sent'} onClick={() => setSelId(l._id)} />
+                  </div>
+                ))}
+          </div>
+        </div>
+
+        <div className="card dsk-reader">
+          {!sel && (
+            <div className="dsk-reader-empty">
+              <div><span className="glyph">✉</span>从左侧选择一封信{tab === 'draft' ? '，或点击草稿继续书写' : ''}</div>
+            </div>
+          )}
+          {sel && sealed && (
+            <div className="dsk-sealed tab-fade" key={sel._id}>
+              <div>
+                <div className="dsk-sealed-env"><div className="dsk-sealed-seal">常</div></div>
+                <div className="dsk-sealed-meta">来自 <b>{sel.senderNickname}</b> 的信 · {sel.word_count} 字 · {sel.timeDisplay}</div>
+                {/* M6 接通 GET /letters/:id（服务端首读自动置 read） */}
+                <div className="btn btn-primary" onClick={() => setReadIds((a) => [...a, sel._id])}>拆 信</div>
+              </div>
+            </div>
+          )}
+          {sel && !sealed && (
+            <div className="dsk-letter tab-fade" key={sel._id + '-open'}>
+              <div className="dsk-letter-head">
+                <Avatar name={tab === 'sent' ? sel.receiverNickname : sel.senderNickname} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="dsk-letter-title">{sel.title || '无标题'}</div>
+                  <div className="dsk-letter-meta">
+                    {tab === 'sent' ? '致 ' + sel.receiverNickname : '来自 ' + sel.senderNickname} · {sel.word_count} 字 · {sel.timeDisplay}
+                  </div>
+                </div>
+                {tab === 'sent' && (
+                  <span className={'status-chip ' + (sel.status === 'read' ? 'status-read' : 'status-sent')}>
+                    {sel.status === 'read' ? '已读' : '已寄出'}
+                  </span>
+                )}
+              </div>
+              <div className="dsk-letter-body">{sel.content || sel.excerpt}</div>
+              <div className="dsk-letter-actions">
+                {tab === 'inbox' && <div className="btn btn-primary" onClick={() => goWrite({ replyTo: sel })}>回 信</div>}
+                {tab === 'inbox' && <div className="btn btn-ghost" onClick={() => toast('已归档 ✦')}>归档</div>}
+                {tab === 'sent' && <div className="btn btn-ghost" onClick={() => toast('对方回信后会出现在收件箱 ✦')}>再写一封</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
