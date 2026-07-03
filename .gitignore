@@ -4,6 +4,7 @@ node_modules/
 # build output
 dist/
 build/
+.vite/
 
 # env / secrets — 永不入库
 .env
