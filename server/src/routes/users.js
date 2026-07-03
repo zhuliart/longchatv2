@@ -7,6 +7,7 @@ import {
   ACTIVE_TIMES, LETTER_FREQS, ACTIVE_TIME_LABEL, LETTER_FREQ_LABEL,
 } from '../models/index.js';
 import { isActiveRecently } from '../services/match.js';
+import { assertClean } from '../services/moderation.js';
 
 const router = Router();
 
@@ -36,7 +37,7 @@ async function buildMe(user) {
 
 /**
  * 注册引导提交（对应 v0.2 createUser，契约 §7）：服务端复校，不信任前端。
- * intro 内容审核在 M4 挂接（T4.1 挂接点之一）。
+ * intro 落库前过内容审核（T4.1 挂接点：users.profile(intro)）。
  */
 router.post('/profile', async (req, res, next) => {
   try {
@@ -64,9 +65,11 @@ router.post('/profile', async (req, res, next) => {
     if (letterFreq !== undefined && !LETTER_FREQS.includes(letterFreq)) {
       throw new AppError(ERR.BAD_REQUEST, '书信频率不合法');
     }
+    const moderation = await assertClean(intro, 'intro');
 
     const user = req.user;
     user.set({ nickname, intro, tags, has_profile: true });
+    user.moderation = moderation || undefined;
     if (activeTime) user.active_time = activeTime;
     if (letterFreq) user.letter_freq = letterFreq;
     await user.save();
@@ -98,7 +101,7 @@ router.get('/me', async (req, res, next) => {
 
 /**
  * 局部更新资料（契约 §7）：传啥改啥，服务端逐项复校；
- * intro 改动重过审核在 M4 挂接；tags 改动影响下次匹配计算（无需额外处理）。
+ * intro 改动重新过审核（T4.1）；tags 改动影响下次匹配计算（无需额外处理）。
  */
 router.patch('/me', async (req, res, next) => {
   try {
@@ -116,6 +119,7 @@ router.patch('/me', async (req, res, next) => {
       if (n < 20 || n > 60) {
         throw new AppError(ERR.WORD_COUNT, `一句话介绍需在20-60字之间，当前${n}字`);
       }
+      user.moderation = (await assertClean(intro, 'intro')) || undefined;
       user.intro = intro;
     }
     if (body.tags !== undefined) {

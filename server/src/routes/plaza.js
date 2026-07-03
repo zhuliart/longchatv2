@@ -3,6 +3,7 @@ import { ok, ERR, AppError } from '../utils/response.js';
 import { countWords } from '../utils/countWords.js';
 import { parsePage, asObjectId, PAGE_SIZE, COMMENT_PAGE_SIZE } from '../utils/listing.js';
 import { Mood, MoodComment } from '../models/index.js';
+import { assertClean } from '../services/moderation.js';
 
 const router = Router();
 
@@ -40,7 +41,7 @@ router.get('/moods', async (req, res, next) => {
 
 /**
  * 评论公开心情（契约 §6）：目标须 public 否则 9001；1–200 字；两级 ——
- * 回复「回复」时压平挂到其顶层评论下。内容审核在 M4 挂接（T4.1 挂接点：comment）。
+ * 回复「回复」时压平挂到其顶层评论下。落库前过内容审核（T4.1 挂接点：comment）。
  */
 router.post('/moods/:id/comments', async (req, res, next) => {
   try {
@@ -53,6 +54,7 @@ router.post('/moods/:id/comments', async (req, res, next) => {
     if (n < 1 || n > 200) {
       throw new AppError(ERR.WORD_COUNT, `评论需在1-200字之间，当前${n}字`);
     }
+    const moderation = await assertClean(content, 'comment');
 
     let parentId = null;
     if (req.body?.parentId) {
@@ -67,6 +69,7 @@ router.post('/moods/:id/comments', async (req, res, next) => {
       from_uid: req.uid,
       content,
       parent_id: parentId,
+      ...(moderation && { moderation }),
     });
     const updated = await Mood.findByIdAndUpdate(moodId, { $inc: { comment_count: 1 } }, { new: true });
     res.json(ok({ _id: comment._id, commentCount: updated.comment_count }));

@@ -4,6 +4,7 @@ import { countWords } from '../utils/countWords.js';
 import { parsePage, asObjectId, PAGE_SIZE } from '../utils/listing.js';
 import { User, Letter, Draft, Match } from '../models/index.js';
 import { hasCorresponded } from '../services/match.js';
+import { assertClean } from '../services/moderation.js';
 
 const router = Router();
 
@@ -42,7 +43,7 @@ async function afterSent(fromUid, toUid) {
   ]);
 }
 
-/** 寄信（契约 §4）。内容审核在 M4 挂接（T4.1 挂接点：sendLetter） */
+/** 寄信（契约 §4）。落库前过内容审核（T4.1 挂接点：sendLetter） */
 router.post('/', async (req, res, next) => {
   try {
     const toUid = asObjectId(req.body?.targetUid, '收件人不存在');
@@ -60,6 +61,7 @@ router.post('/', async (req, res, next) => {
     const content = String(req.body?.content || '');
     const wordCount = checkWordCount(content, isFirst ? FIRST_MIN : REPLY_MIN, isFirst ? '字数不足，' : '');
     const title = checkTitle(req.body?.title);
+    const moderation = await assertClean(title ? `${title}\n${content}` : content, 'letter');
 
     const letter = await Letter.create({
       from_uid: req.uid,
@@ -69,6 +71,7 @@ router.post('/', async (req, res, next) => {
       word_count: wordCount,
       status: 'sent',
       is_first: isFirst,
+      ...(moderation && { moderation }),
     });
     await afterSent(req.uid, toUid);
     res.json(ok({ _id: letter._id }));
@@ -186,6 +189,7 @@ router.post('/:id/reply', async (req, res, next) => {
     const content = String(req.body?.content || '');
     const wordCount = checkWordCount(content, REPLY_MIN, '回信');
     const title = checkTitle(req.body?.title);
+    const moderation = await assertClean(title ? `${title}\n${content}` : content, 'letter');
 
     const letter = await Letter.create({
       from_uid: req.uid,
@@ -196,6 +200,7 @@ router.post('/:id/reply', async (req, res, next) => {
       word_count: wordCount,
       status: 'sent',
       is_first: false,
+      ...(moderation && { moderation }),
     });
     await afterSent(req.uid, toUid);
     res.json(ok({ _id: letter._id }));

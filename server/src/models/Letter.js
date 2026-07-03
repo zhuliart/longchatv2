@@ -17,6 +17,8 @@ const letterSchema = new mongoose.Schema(
     is_first: { type: Boolean, default: false },
     read_at: { type: Date, default: null },
     moderation: { type: String, enum: MODERATION_STATES, default: undefined },
+    // 不活跃检查（T4.3 inactivityCheck，同 v0.2 №28）：7/14/30 天未获回应的标记
+    inactive_days: { type: Number, enum: [7, 14, 30], default: undefined },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: false }, versionKey: false }
 );
