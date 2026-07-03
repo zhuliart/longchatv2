@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+build/
+
+# env / secrets — 永不入库
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+logs/
+
+# misc
+.DS_Store
+coverage/
