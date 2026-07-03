@@ -2,6 +2,11 @@ import { Router } from 'express';
 import healthRouter from './health.js';
 import authRouter from './auth.js';
 import usersRouter from './users.js';
+import lettersRouter from './letters.js';
+import draftsRouter from './drafts.js';
+import moodsRouter from './moods.js';
+import plazaRouter from './plaza.js';
+import matchesRouter from './matches.js';
 import { requireAuth, requireProfile } from '../middlewares/auth.js';
 
 /**
@@ -18,5 +23,10 @@ api.use(requireAuth);
 api.use(requireProfile);
 
 api.use('/users', usersRouter);
+api.use('/letters', lettersRouter);
+api.use('/drafts', draftsRouter);
+api.use('/moods', moodsRouter);
+api.use('/plaza', plazaRouter);
+api.use('/matches', matchesRouter);
 
 export default api;

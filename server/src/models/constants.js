@@ -25,8 +25,10 @@ export const EMOTION_FEELINGS = {
 export const VISIBILITIES = ['private', 'friends', 'public'];
 
 export const ACTIVE_TIMES = ['morning', 'afternoon', 'night'];
+export const ACTIVE_TIME_LABEL = { morning: '清晨', afternoon: '午后', night: '夜深' };
 
 export const LETTER_FREQS = ['weekly', 'biweekly', 'free'];
+export const LETTER_FREQ_LABEL = { weekly: '每周一封', biweekly: '每两周一封', free: '随缘' };
 
 export const LETTER_STATUSES = ['sent', 'read', 'archived', 'rejected'];
 
