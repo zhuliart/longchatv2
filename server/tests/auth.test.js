@@ -161,9 +161,10 @@ test('POST /users/profile: 成功 → has_profile=true，门槛放开，重复�
     [0, 0, 0]
   );
 
-  // 门槛已放开：未实现的业务路由现在走到 404 而非「完成引导」拒绝
+  // 门槛已放开：业务路由不再被「完成引导」拒绝（进入真实路由的参数校验）
   const gated = await request(app).post('/api/v1/letters').set(auth).send({});
-  assert.equal(gated.status, 404);
+  assert.equal(gated.status, 200);
+  assert.doesNotMatch(gated.body.message, /完成注册引导/);
 
   const dup = await request(app).post('/api/v1/users/profile').set(auth).send({
     nickname: 'x', intro: '字'.repeat(30), tags: ['a', 'b', 'c'],

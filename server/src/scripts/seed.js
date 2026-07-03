@@ -15,6 +15,7 @@ import {
   User, Letter, Draft, Mood, MoodComment, Match,
   OFFICIAL_ACCOUNT, syncAllIndexes,
 } from '../models/index.js';
+import { computeMatchScore, hasCorresponded } from '../services/match.js';
 
 const TEST_PASSWORD = 'test123456'; // 仅测试用户；README 有说明
 
@@ -43,18 +44,6 @@ async function upsertUser(fields) {
     return found;
   }
   return User.create(fields);
-}
-
-/** 契合分（与 T3.5 同式的简化版，正式实现落在 services/match.js） */
-function matchScore(a, b) {
-  const setB = new Set(b.tags);
-  const common = a.tags.filter((t) => setB.has(t));
-  const union = new Set([...a.tags, ...b.tags]).size;
-  let score = union ? Math.round((common.length / union) * 100) : 0;
-  if (a.active_time === b.active_time) score += 10;
-  if (a.letter_freq === b.letter_freq) score += 5;
-  score += 8; // 种子用户视为 7 天内活跃
-  return { score: Math.min(score, 100), tags_common: common };
 }
 
 async function main() {
@@ -263,12 +252,14 @@ async function main() {
   );
   await Mood.updateOne({ _id: moodPublicShiguang._id }, { $set: { comment_count: 3 } });
 
-  // ---- 匹配：每个测试用户对另外两人的当日 pending 推荐 ----
+  // ---- 匹配：当日 pending 推荐（复用 T3.5 算法，排除已通信关系） ----
   const matches = [];
   for (const a of testUsers) {
     for (const b of testUsers) {
       if (a._id.equals(b._id)) continue;
-      matches.push({ uid_a: a._id, uid_b: b._id, status: 'pending', ...matchScore(a, b) });
+      if (await hasCorresponded(a._id, b._id)) continue;
+      const { score, tagsCommon } = computeMatchScore(a, b);
+      matches.push({ uid_a: a._id, uid_b: b._id, status: 'pending', score, tags_common: tagsCommon });
     }
   }
   await Match.create(matches);
