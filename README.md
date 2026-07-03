@@ -29,6 +29,7 @@ docker compose -f deploy/docker-compose.dev.yml up -d
 cd server
 cp .env.example .env      # 开发默认值开箱即用
 npm install
+npm run seed              # 种子数据：官方号「平常信使」+ 3 个测试用户，幂等可重跑
 npm run dev
 
 # 3. 启动前端（:5173，/api 已代理到 :3000）
@@ -38,6 +39,8 @@ npm run dev
 ```
 
 验证：浏览器打开 http://localhost:5173 ，或 `curl http://localhost:3000/api/v1/health`。
+
+测试账号（seed 生成，仅开发环境）：`shiguang@test.com` / `guiling@test.com` / `qingshan@test.com`，密码均为 `test123456`。官方账号「平常信使」的密码由 `SEED_OFFICIAL_PASSWORD` 指定，未指定则随机生成并打印在 seed 日志中。生产环境跑 seed 只建官方号，不放测试数据。
 
 ## 测试
 
