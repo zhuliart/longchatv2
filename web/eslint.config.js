@@ -26,4 +26,12 @@ export default [
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Node 环境：Playwright 配置与 E2E 用例（跑在 node，非浏览器）
+    files: ['playwright.config.js', 'tests/e2e/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.node },
+      parserOptions: { sourceType: 'module' },
+    },
+  },
 ];

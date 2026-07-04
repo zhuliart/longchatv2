@@ -18,3 +18,8 @@ logs/
 # misc
 .DS_Store
 coverage/
+
+# playwright e2e 产物
+test-results/
+playwright-report/
+.playwright/
