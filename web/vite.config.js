@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // 绑定所有网卡，便于 GitHub Codespaces / 局域网真机 经转发地址访问（本地开发不受影响）
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
