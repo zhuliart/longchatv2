@@ -1,18 +1,39 @@
-/* 编辑资料（T5.4）：昵称 ≤20 / 介绍 20–60 字 / 标签 3–5（M6 接通 PATCH /users/me） */
+/* 编辑资料（T5.4 / T6.3 编辑资料保存）：昵称 ≤20 / 介绍 20–60 字 / 标签 3–5 → PATCH /users/me；
+   成功后同步全局用户态（user store）。 */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusBar, NavBar } from '../components/chrome.jsx';
+import { SkeletonList } from '../components/states.jsx';
 import { countWords } from '../utils/countWords.js';
 import { PRESET_TAGS } from '../constants/index.js';
-import { ME } from '../mocks/index.js';
+import { usersApi, ApiError } from '../api/index.js';
+import { useUser } from '../store/user.jsx';
 import { useUI } from '../store/ui.jsx';
 
+/* 资料未就位时（直接刷新 /edit）先出骨架，就绪后再挂载表单，保证初值来自权威资料。 */
 export function EditScreen() {
   const navigate = useNavigate();
+  const { me } = useUser();
+  if (!me) {
+    return (
+      <div className="page is-overlay">
+        <StatusBar dark />
+        <NavBar title="编辑资料" onBack={() => navigate(-1)} />
+        <div className="page-scroll" style={{ padding: 16 }}><SkeletonList rows={3} /></div>
+      </div>
+    );
+  }
+  return <EditForm me={me} />;
+}
+
+function EditForm({ me }) {
+  const navigate = useNavigate();
   const { toast } = useUI();
-  const [nickname, setNickname] = useState(ME.nickname);
-  const [intro, setIntro] = useState(ME.intro);
-  const [tags, setTags] = useState(ME.tags);
+  const { setMe } = useUser();
+  const [nickname, setNickname] = useState(me.nickname || '');
+  const [intro, setIntro] = useState(me.intro || '');
+  const [tags, setTags] = useState(me.tags || []);
+  const [saving, setSaving] = useState(false);
   const introCount = countWords(intro);
   const introValid = introCount >= 20 && introCount <= 60;
   const back = () => navigate(-1);
@@ -21,6 +42,25 @@ export function EditScreen() {
     if (tags.includes(t)) setTags(tags.filter((x) => x !== t));
     else if (tags.length < 5) setTags([...tags, t]);
     else toast('最多选 5 个标签');
+  }
+
+  async function save() {
+    if (saving) return;
+    if (!nickname.trim()) return toast('请填写昵称');
+    if (!introValid) return toast('介绍需 20–60 字');
+    if (tags.length < 3) return toast('至少选 3 个标签');
+    setSaving(true);
+    try {
+      const updated = await usersApi.updateMe({ nickname: nickname.trim(), intro: intro.trim(), tags });
+      setMe(updated); // 服务端复校后的权威资料（含聚合统计）回写全局
+      toast('资料已更新');
+      back();
+    } catch (err) {
+      if (err instanceof ApiError && (err.code === 1001 || err.code === 1002)) toast(err.message);
+      // 9001 已由 client 层 toast
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <div className="page is-overlay">
@@ -47,7 +87,7 @@ export function EditScreen() {
               ))}
             </div>
           </div>
-          <div className="btn btn-primary" style={{ width: '100%' }} onClick={() => { toast('资料已更新'); back(); }}>保存</div>
+          <div className={'btn btn-primary' + (saving ? ' btn-disabled' : '')} style={{ width: '100%' }} onClick={save}>{saving ? '保存中…' : '保存'}</div>
         </div>
       </div>
     </div>

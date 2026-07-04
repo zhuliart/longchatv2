@@ -1,12 +1,22 @@
-/* 桌面写信（T5.5）：1fr+316px —— 左=信纸（收信人 chips 区分「首封」、标题、横线正文、
-   字数进度、存草稿/封存寄出）；右=AI 灵感栏（shimmer 占位，M6 接通）+ 写信约定卡。 */
-import { useState } from 'react';
+/* 桌面写信（T5.5 / T6.3 封存寄出·回信·存草稿·AI）：1fr+316px —— 左=信纸（收信人 chips、标题、
+   横线正文、字数进度、存草稿/封存寄出）；右=AI 灵感栏 + 写信约定卡。
+   收件人 chips 由通信关系派生（收件箱/已发出去重）；寄出 POST /letters（回信 /letters/:id/reply）；
+   存草稿 POST /drafts；AI POST /ai/inspiration | /ai/polish。 */
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { countWords } from '../utils/countWords.js';
 import { FIRST_MIN, REPLY_MIN } from '../constants/index.js';
-import { RECIPIENTS, AI_MOCK_SUGGESTIONS } from '../mocks/index.js';
+import { lettersApi, draftsApi, aiApi, useResource, ApiError } from '../api/index.js';
 import { useUI } from '../store/ui.jsx';
 import { loadWriteDraft, clearWriteDraft, useWriteDraftAutosave } from '../store/writeDraft.js';
+
+/* 收件箱 + 已发出 → 去重的通信对象（皆为非首封对象） */
+function buildRecipients(inbox, sent) {
+  const map = new Map();
+  (inbox || []).forEach((l) => { if (l.from_uid) map.set(String(l.from_uid), l.senderNickname); });
+  (sent || []).forEach((l) => { if (l.to_uid) map.set(String(l.to_uid), l.receiverNickname); });
+  return [...map.entries()].map(([uid, name]) => ({ uid, name }));
+}
 
 export function DWrite() {
   const navigate = useNavigate();
@@ -16,41 +26,99 @@ export function DWrite() {
   const replyTo = params.replyTo;
   const draft = params.draft;
   const saved = state ? null : loadWriteDraft();
-  const [to, setTo] = useState(
+
+  const inbox = useResource(() => lettersApi.getInbox(0), []);
+  const sent = useResource(() => lettersApi.getSent(0), []);
+  const recipients = useMemo(() => buildRecipients(inbox.data, sent.data), [inbox.data, sent.data]);
+
+  const replyToId = replyTo?._id || null;
+  const [toUid, setToUid] = useState(
+    replyTo ? String(replyTo.from_uid || '')
+      : draft?.to_uid ? String(draft.to_uid)
+      : params.targetUid || (saved && saved.targetUid) || ''
+  );
+  const [toName, setToName] = useState(
     replyTo ? replyTo.senderNickname
-      : draft && draft.receiverNickname ? draft.receiverNickname
+      : draft?.receiverNickname ? draft.receiverNickname
       : params.targetNickname || (saved && saved.targetNickname) || ''
   );
-  const [title, setTitle] = useState(replyTo ? '回信：' + replyTo.title : draft ? draft.title : (saved && saved.draftTitle) || '');
-  const [body, setBody] = useState(draft ? draft.excerpt.replace(/……$/, '') : (saved && saved.draftBody) || '');
+  const [title, setTitle] = useState(replyTo ? '回信：' + (replyTo.title || '') : draft ? draft.title : (saved && saved.draftTitle) || '');
+  const [body, setBody] = useState(draft ? String(draft.excerpt || '').replace(/…$/, '') : (saved && saved.draftBody) || '');
+  const [draftId, setDraftId] = useState(draft?._id || (saved && saved.draftId) || null);
   const [aiBusy, setAiBusy] = useState(false);
   const [sugs, setSugs] = useState([]);
-  const rec = RECIPIENTS.find((r) => r.name === to);
-  const isFirst = rec ? rec.first : true;
-  const required = replyTo ? REPLY_MIN : draft ? draft.required : isFirst ? FIRST_MIN : REPLY_MIN;
+  const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  const isFirst = replyToId ? false : !toUid ? true : false; // 选定通信对象皆非首封
+  const required = replyToId ? REPLY_MIN : draft ? draft.required : isFirst ? FIRST_MIN : REPLY_MIN;
   const wc = countWords(body);
-  const ok = to && wc >= required;
+  const canSend = (replyToId || toUid) && wc >= required;
 
-  useWriteDraftAutosave({ targetNickname: to, isFirst, draftTitle: title, draftBody: body });
+  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst, draftId, draftTitle: title, draftBody: body });
 
-  /* AI 续写/润色占位：M6 接通 POST /ai/inspiration | /ai/polish */
-  function aiContinue() {
+  function pick(r) { setToUid(r.uid); setToName(r.name); }
+
+  async function aiContinue() {
     setAiBusy(true); setSugs([]);
-    setTimeout(() => { setSugs(AI_MOCK_SUGGESTIONS); setAiBusy(false); }, 900);
+    try {
+      const { suggestions } = await aiApi.getWritingInspiration({ draft: body, ...(toUid ? { targetUid: toUid } : {}) });
+      setSugs(suggestions || []);
+    } catch {
+      /* 降级/异常已由 client 层 toast */
+    } finally {
+      setAiBusy(false);
+    }
   }
-  function aiPolish() {
+  async function aiPolish() {
     if (countWords(body) < 10) { toast('先写下一点内容，再帮你润色'); return; }
     setAiBusy(true);
-    setTimeout(() => { setAiBusy(false); toast('润色完成 ✦'); }, 900);
+    try {
+      const { polished } = await aiApi.polishLetter(body.trim());
+      if (polished) { setBody(polished); toast('润色完成 ✦'); }
+    } catch {
+      /* 异常已由 client 层 toast */
+    } finally {
+      setAiBusy(false);
+    }
   }
   function insert(s) { setBody((b) => (b ? b.trimEnd() + '\n\n' : '') + s); setSugs([]); }
   function onBack() { navigate('/inbox'); }
-  function send() {
-    if (!ok) { toast(!to ? '先选择收信人' : `还差 ${required - wc} 字（${isFirst && !replyTo ? '首封至少 ' + required : '至少 ' + required} 字）`); return; }
-    // M6 接通 POST /letters | /letters/:id/reply
-    clearWriteDraft();
-    toast('信已封存寄出 ✦ 它将在合适的时刻抵达');
-    setTimeout(onBack, 900);
+
+  async function saveDraft() {
+    if (savingDraft) return;
+    setSavingDraft(true);
+    try {
+      const res = await draftsApi.saveDraft({
+        ...(draftId ? { id: draftId } : {}),
+        ...(toUid ? { targetUid: toUid } : {}),
+        title, content: body, isFirst,
+      });
+      if (res?._id) setDraftId(res._id);
+      toast('草稿已保存 ✦');
+    } catch {
+      /* 异常已由 client 层 toast */
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
+  async function send() {
+    if (sending) return;
+    if (!replyToId && !toUid) { toast('先选择收信人'); return; }
+    if (wc < required) { toast(`还差 ${required - wc} 字（至少 ${required} 字）`); return; }
+    setSending(true);
+    try {
+      if (replyToId) await lettersApi.replyLetter(replyToId, { title, content: body });
+      else await lettersApi.sendLetter({ targetUid: toUid, title, content: body });
+      clearWriteDraft();
+      toast('信已封存寄出 ✦ 它将在合适的时刻抵达');
+      setTimeout(onBack, 600);
+    } catch (err) {
+      if (err instanceof ApiError && [1001, 1002, 1003].includes(err.code)) toast(err.message);
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -64,19 +132,25 @@ export function DWrite() {
         <div className="card dsk-write-paper">
           <div className="dsk-recipient-row">
             <span className="dsk-recipient-label">致</span>
-            {RECIPIENTS.map((r) => (
-              <span key={r.name}
-                className={'dsk-recipient' + (to === r.name ? ' active' : '') + (r.first ? ' is-new' : '')}
-                onClick={() => setTo(r.name)}>{r.name}</span>
-            ))}
+            {replyTo ? (
+              <span className="dsk-recipient active">{toName}</span>
+            ) : recipients.length === 0 ? (
+              <span className="dsk-recipient" style={{ opacity: 0.6 }}>{toName || '暂无通信对象，可先存草稿'}</span>
+            ) : (
+              recipients.map((r) => (
+                <span key={r.uid}
+                  className={'dsk-recipient' + (toUid === r.uid ? ' active' : '')}
+                  onClick={() => pick(r)}>{r.name}</span>
+              ))
+            )}
           </div>
           <input className="dsk-write-title" placeholder="标题（可不填，≤30字）" maxLength={30} value={title} onChange={(e) => setTitle(e.target.value)} />
           <textarea className="dsk-write-body" placeholder={'亲爱的朋友：\n\n见字如面……'} value={body} onChange={(e) => setBody(e.target.value)} />
           <div className="dsk-write-foot">
-            <span className={'dsk-wc' + (wc >= required ? ' ok' : '')}>已写 <b>{wc}</b> / {required} 字{replyTo ? '（回信）' : isFirst ? '（首封）' : ''}</span>
+            <span className={'dsk-wc' + (wc >= required ? ' ok' : '')}>已写 <b>{wc}</b> / {required} 字{replyToId ? '（回信）' : isFirst ? '（首封）' : ''}</span>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div className="btn btn-ghost" onClick={() => toast('草稿已保存 ✦')}>存草稿</div>
-              <div className={'btn btn-primary' + (ok ? '' : ' btn-disabled')} onClick={send}>封存寄出</div>
+              <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>
+              <div className={'btn btn-primary' + (canSend && !sending ? '' : ' btn-disabled')} onClick={send}>{sending ? '寄出中…' : '封存寄出'}</div>
             </div>
           </div>
         </div>
@@ -86,8 +160,8 @@ export function DWrite() {
             <div className="dsk-ai-title">✦ 灵感</div>
             <div className="dsk-ai-sub">根据你以往信件的笔触，续写或润色。生成的句子只是提议，采不采用由你。</div>
             <div className="dsk-ai-actions">
-              <button className={'dsk-ai-action' + (aiBusy ? ' busy' : '')} onClick={aiContinue}>✎ 顺着我的风格续写</button>
-              <button className={'dsk-ai-action' + (aiBusy ? ' busy' : '')} onClick={aiPolish}>❋ 帮我润色这段</button>
+              <button className={'dsk-ai-action' + (aiBusy ? ' busy' : '')} onClick={aiContinue} disabled={aiBusy}>✎ 顺着我的风格续写</button>
+              <button className={'dsk-ai-action' + (aiBusy ? ' busy' : '')} onClick={aiPolish} disabled={aiBusy}>❋ 帮我润色这段</button>
             </div>
             {aiBusy && <div className="dsk-ai-actions"><div className="dsk-ai-shimmer" /><div className="dsk-ai-shimmer" /></div>}
             {sugs.length > 0 && (

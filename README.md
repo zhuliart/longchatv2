@@ -48,12 +48,12 @@ npm run dev
 
 测试账号（seed 生成，仅开发环境）：`shiguang@test.com` / `guiling@test.com` / `qingshan@test.com`，密码均为 `test123456`。官方账号「平常信使」的密码由 `SEED_OFFICIAL_PASSWORD` 指定，未指定则随机生成并打印在 seed 日志中。生产环境跑 seed 只建官方号，不放测试数据。
 
-前端说明（M5）：
+前端说明（M5 静态还原 · M6 接入 API）：
 
 - **像素基准**：`design/.../prototype/` 两个高保真原型；默认锁定「黛雾」主题 + 强调色 `#9C7B86` + 正文黑体（15 套主题机制保留，V1 不出切换 UI；首页月亮按钮切深色）。
 - **响应式一体**：`<768px` 移动版式（Tab + 叠层页），`≥768px` 桌面壳层（侧栏 + 双栏），桌面再分 `<1160px` 图标栏 / `<960px` 纵向堆叠两档断点。
 - **字体自托管**：Noto Sans/Serif SC 400–700 经 `@fontsource` 随构建打包，不走 Google Fonts 外链。
-- 本阶段页面数据为 mock（`web/src/mocks/`），M6 按 `docs/MOCK-INVENTORY.md` 对照表逐项替换为接口。
+- **接口层（M6）**：`web/src/api/` 统一 fetch 封装（注入 Bearer、解析 `{code,data,message}`、401 清态回登录、9001/9002 toast + 9002 重试一次），各模块与契约路由一一对应，页面禁止直连 fetch。原型 `data.jsx` 的假数据（`web/src/mocks/`）已全部替换为接口并删除，仅词表常量保留在 `web/src/constants/`；用户资料 / 今日心情等跨页共享态收敛到 `web/src/store/`。加载骨架、`正在取信…` spinner、空态与网络异常 toast 见 `web/src/components/states.jsx`。
 
 ## 测试
 

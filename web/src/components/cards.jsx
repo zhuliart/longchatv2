@@ -1,5 +1,8 @@
-/* 卡片组件（T5.3）：SoulCard / EnvelopeCard（未读红点+左侧色条）/ DraftCard */
+/* 卡片组件（T5.3 / T6.2）：SoulCard / EnvelopeCard（未读红点+左侧色条）/ DraftCard。
+   信件展示字段由接口的 created_at / content 派生（相对时间 + 摘要）。 */
 import { Avatar } from './primitives.jsx';
+import { relativeTime } from '../utils/date.js';
+import { excerpt as makeExcerpt } from '../utils/text.js';
 
 export function scoreColor(s) {
   if (s >= 85) return 'var(--m-happy)';
@@ -35,6 +38,8 @@ export function SoulCard({ item, mini, onClick }) {
 export function EnvelopeCard({ letter, sent, onClick }) {
   const name = sent ? letter.receiverNickname : letter.senderNickname;
   const unread = !sent && letter.status === 'sent';
+  const time = letter.timeDisplay || relativeTime(letter.created_at);
+  const preview = letter.excerpt || makeExcerpt(letter.content, 46);
   return (
     <div className="envelope-card" onClick={onClick}>
       {unread && <span className="unread-dot" />}
@@ -42,10 +47,10 @@ export function EnvelopeCard({ letter, sent, onClick }) {
       <div className="envelope-body">
         <div className="envelope-row">
           <span className="envelope-name">{sent ? '致 ' + name : name}</span>
-          <span className="envelope-time">{letter.timeDisplay}</span>
+          <span className="envelope-time">{time}</span>
         </div>
         {letter.title && <div className="envelope-subject text-clamp-2">{letter.title}</div>}
-        <div className="envelope-excerpt text-clamp-2">{letter.excerpt}</div>
+        <div className="envelope-excerpt text-clamp-2">{preview}</div>
         <div className="envelope-meta">
           <span className="envelope-words">{letter.word_count} 字</span>
           {unread && <span className="date-pill new">未读</span>}
@@ -63,13 +68,14 @@ export function EnvelopeCard({ letter, sent, onClick }) {
 export function DraftCard({ draft, onClick, onDelete }) {
   const hasRecipient = !!draft.receiverNickname;
   const remaining = Math.max(0, (draft.required || 0) - draft.word_count);
+  const time = draft.timeDisplay || relativeTime(draft.updated_at);
   return (
     <div className="envelope-card draft-card" onClick={onClick}>
       <Avatar name={hasRecipient ? draft.receiverNickname : '…'} />
       <div className="envelope-body">
         <div className="envelope-row">
           <span className="envelope-name">{hasRecipient ? '致 ' + draft.receiverNickname : '未指定收信人'}</span>
-          <span className="envelope-time">{draft.timeDisplay}</span>
+          <span className="envelope-time">{time}</span>
         </div>
         {draft.title
           ? <div className="envelope-subject text-clamp-2">{draft.title}</div>

@@ -1,13 +1,15 @@
-/* 桌面旅程（T5.5）：并排 448px+1fr —— 左=月历+当月走势；右=当日详情（含 MoodWidget，
-   往日锁定为仅可见性）；心情广场=两栏瀑布卡片 + 展开评论。 */
+/* 桌面旅程（T5.5 / T6.2 #8#9#10、T6.3 记心情·改可见性·广场评论）：并排 448px+1fr ——
+   左=月历+当月走势；右=当日详情（含 MoodWidget，往日锁定为仅可见性）；心情广场=两栏瀑布卡片 + 展开评论。
+   数据 GET /moods?year=&month=、/plaza/moods、/plaza/moods/:id/comments。 */
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Avatar, MoodFace, MoodBadge, IntensityDots } from '../components/primitives.jsx';
 import { MoodWidget } from '../components/MoodWidget.jsx';
 import { TrendChart } from '../components/TrendChart.jsx';
-import { FEED, ME } from '../mocks/index.js';
+import { SkeletonList, ErrorState } from '../components/states.jsx';
+import { moodsApi, plazaApi, useResource, ApiError } from '../api/index.js';
 import { buildCalendar, buildTrend } from '../utils/calendar.js';
-import { pad2 } from '../utils/date.js';
+import { pad2, ymd, relativeTime } from '../utils/date.js';
 import { useMoods } from '../store/moods.jsx';
 import { useUI } from '../store/ui.jsx';
 
@@ -16,7 +18,7 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 export function DJourney() {
   const [params] = useSearchParams();
   const initialDate = params.get('date') || '';
-  const { moods, upsertMood } = useMoods();
+  const { saveToday } = useMoods();
   const { toast } = useUI();
 
   const now = new Date();
@@ -26,6 +28,9 @@ export function DJourney() {
   const [year, setYear] = useState(hasInit ? +init[0] : now.getFullYear());
   const [month, setMonth] = useState(hasInit ? +init[1] : now.getMonth() + 1);
   const [selDay, setSelDay] = useState(hasInit ? +init[2] : now.getDate());
+
+  const monthRes = useResource(() => moodsApi.getMoods(year, month), [year, month]);
+  const moods = monthRes.data || [];
 
   const cells = buildCalendar(year, month, moods);
   const selDate = `${year}-${pad2(month)}-${pad2(selDay)}`;
@@ -40,9 +45,29 @@ export function DJourney() {
     if (m < 1) { m = 12; y -= 1; } else if (m > 12) { m = 1; y += 1; }
     setYear(y); setMonth(m); setSelDay(1);
   }
-  function saveMood(m) {
-    upsertMood({ ...selMood, ...m, date: selDate });
-    toast(isPast ? '可见性已更新 ✦' : '情绪已记录 ✦');
+  function patchLocal(patch, matchDate) {
+    monthRes.setData((prev) => {
+      const arr = prev ? [...prev] : [];
+      const i = arr.findIndex((x) => (matchDate ? x.date === matchDate : x._id === patch._id));
+      if (i > -1) arr[i] = { ...arr[i], ...patch };
+      else arr.push(patch);
+      return arr;
+    });
+  }
+  async function saveMood(m) {
+    try {
+      if (isPast) {
+        const res = await moodsApi.updateMoodVisibility(selMood._id, m.visibility);
+        patchLocal({ _id: selMood._id, visibility: res.visibility });
+        toast('可见性已更新 ✦');
+      } else {
+        const merged = await saveToday(m);
+        patchLocal(merged, ymd());
+        toast('情绪已记录 ✦');
+      }
+    } catch (err) {
+      if (err instanceof ApiError && (err.code === 1001 || err.code === 1002)) toast(err.message);
+    }
   }
 
   return (
@@ -89,7 +114,11 @@ export function DJourney() {
 
           <div className="card dsk-card">
             <div className="dsk-card-title"><span>{year}年{month}月{selDay}日</span></div>
-            {selMood ? (
+            {monthRes.loading ? (
+              <SkeletonList rows={2} />
+            ) : monthRes.error ? (
+              <ErrorState onRetry={monthRes.reload} />
+            ) : selMood ? (
               <div key={selDate} className="tab-fade">
                 <div className="dsk-mood-done">
                   <MoodFace emotion={selMood.emotion} size={46} />
@@ -121,60 +150,99 @@ export function DJourney() {
   );
 }
 
-/* 心情广场（两栏瀑布 + 行内展开评论；M6 接通 GET /plaza/moods 与评论接口） */
+/* 心情广场（两栏瀑布 + 行内展开评论；GET /plaza/moods + 评论接口） */
 export function DPlaza() {
-  const { toast } = useUI();
+  const { data, loading, error, reload, setData } = useResource(() => plazaApi.getPublicMoods(0), []);
   const [openId, setOpenId] = useState(null);
-  const [feed, setFeed] = useState(FEED);
-  const [input, setInput] = useState('');
+  const feed = data || [];
 
-  function send(card) {
-    const t = input.trim();
-    if (!t) return;
-    const c = { _id: 'c' + Date.now(), fromNickname: ME.nickname, content: t, created_at: '刚刚', parent_id: null };
-    setFeed((arr) => arr.map((f) => f._id === card._id ? { ...f, comments: [...(f.comments || []), c], commentCount: f.commentCount + 1 } : f));
-    setInput('');
-    toast('评论已送达 ✦');
+  function bumpCount(id, count) {
+    setData((arr) => (arr || []).map((f) => (f._id === id ? { ...f, commentCount: count } : f)));
   }
 
+  if (loading) return <div className="dsk-plaza"><SkeletonList rows={4} /></div>;
+  if (error) return <ErrorState onRetry={reload} />;
+  if (feed.length === 0) {
+    return (
+      <div className="empty-state" style={{ paddingTop: 60 }}>
+        <span className="empty-icon">🌍</span>
+        <span>广场还很安静</span>
+        <span className="empty-sub">把某天的心情设为公开，就会出现在这里</span>
+      </div>
+    );
+  }
   return (
     <div className="dsk-plaza">
       {feed.map((f) => (
-        <div key={f._id} className="card dsk-plaza-card">
-          <div className="dsk-plaza-head">
-            <Avatar name={f.authorNickname} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="dsk-plaza-name">{f.authorNickname}</div>
-              <div className="dsk-plaza-date">{f.date}</div>
-            </div>
-            <MoodBadge emotion={f.emotion} feeling={f.feeling} withFace />
-          </div>
-          <div className="dsk-plaza-diary">{f.diary}</div>
-          <div className="dsk-plaza-foot">
-            <IntensityDots value={f.intensity} />
-            <span className="dsk-plaza-cc" onClick={() => setOpenId(openId === f._id ? null : f._id)}>
-              💬 {f.commentCount} 条回应 {openId === f._id ? '收起' : '展开'}
-            </span>
-          </div>
-          {openId === f._id && (
-            <div className="dsk-plaza-comments tab-fade">
-              {(f.comments || []).map((c) => (
-                <div key={c._id} className={'dsk-comment' + (c.parent_id ? ' is-reply' : '')}>
-                  <b>{c.fromNickname}</b>：{c.content}
-                  <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--color-ink-secondary)' }}>{c.created_at}</span>
-                </div>
-              ))}
-              {(f.comments || []).length === 0 && <div className="dsk-comment" style={{ color: 'var(--color-ink-secondary)' }}>还没有回应，说点什么吧</div>}
-              <div className="dsk-comment-row">
-                <input placeholder="温柔地回应…" value={input} maxLength={200}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && send(f)} />
-                <div className="comment-send" onClick={() => send(f)}>发送</div>
-              </div>
-            </div>
-          )}
-        </div>
+        <DPlazaCard key={f._id} card={f} open={openId === f._id}
+          onToggle={() => setOpenId(openId === f._id ? null : f._id)}
+          onPosted={(count) => bumpCount(f._id, count)} />
       ))}
+    </div>
+  );
+}
+
+function DPlazaCard({ card, open, onToggle, onPosted }) {
+  const { toast } = useUI();
+  const comments = useResource(() => (open ? plazaApi.getMoodComments(card._id, 0) : Promise.resolve([])), [open, card._id]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const list = comments.data || [];
+
+  async function send() {
+    const content = input.trim();
+    if (!content || sending) return;
+    setSending(true);
+    try {
+      const res = await plazaApi.commentOnMood(card._id, { content });
+      setInput('');
+      comments.reload();
+      if (res?.commentCount != null) onPosted(res.commentCount);
+      toast('评论已送达 ✦');
+    } catch (err) {
+      if (err instanceof ApiError && (err.code === 1001 || err.code === 1002)) toast(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="card dsk-plaza-card">
+      <div className="dsk-plaza-head">
+        <Avatar name={card.authorNickname} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="dsk-plaza-name">{card.authorNickname}</div>
+          <div className="dsk-plaza-date">{card.date}</div>
+        </div>
+        <MoodBadge emotion={card.emotion} feeling={card.feeling} withFace />
+      </div>
+      <div className="dsk-plaza-diary">{card.diary}</div>
+      <div className="dsk-plaza-foot">
+        <IntensityDots value={card.intensity} />
+        <span className="dsk-plaza-cc" onClick={onToggle}>
+          💬 {card.commentCount} 条回应 {open ? '收起' : '展开'}
+        </span>
+      </div>
+      {open && (
+        <div className="dsk-plaza-comments tab-fade">
+          {comments.loading ? (
+            <div className="dsk-comment" style={{ color: 'var(--color-ink-secondary)' }}>加载中…</div>
+          ) : list.length === 0 ? (
+            <div className="dsk-comment" style={{ color: 'var(--color-ink-secondary)' }}>还没有回应，说点什么吧</div>
+          ) : list.map((c) => (
+            <div key={c._id} className={'dsk-comment' + (c.parent_id ? ' is-reply' : '')}>
+              <b>{c.fromNickname}</b>：{c.content}
+              <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--color-ink-secondary)' }}>{relativeTime(c.created_at)}</span>
+            </div>
+          ))}
+          <div className="dsk-comment-row">
+            <input placeholder="温柔地回应…" value={input} maxLength={200}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && send()} />
+            <div className="comment-send" onClick={send}>{sending ? '发送中…' : '发送'}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

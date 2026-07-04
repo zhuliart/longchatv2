@@ -1,12 +1,15 @@
-/* 写信（T5.4）：收信人 + 标题(≤30) + 横线信纸正文 + 字数门槛进度「已写 n / N 字」
-   + 灵感面板（静态灵感组 + AI 续写/润色占位，M6 接通 POST /ai/*）+ 封存寄出。
-   正文 localStorage 自动暂存（T5.7 writeDraft）。 */
+/* 写信（T5.4 / T6.3 封存寄出·回信·存草稿·AI 续写/润色）：收信人 + 标题(≤30) + 横线信纸正文
+   + 字数门槛进度「已写 n / N 字」+ 灵感面板（静态灵感组 + AI 续写/润色）+ 封存寄出。
+   正文 localStorage 自动暂存（T5.7 writeDraft）。
+   寄出 POST /letters（回信 POST /letters/:id/reply）→ 成功服务端已删草稿；
+   存草稿 POST /drafts；AI POST /ai/inspiration | /ai/polish。 */
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { StatusBar, NavBar } from '../components/chrome.jsx';
 import { countWords } from '../utils/countWords.js';
 import { FIRST_MIN, REPLY_MIN } from '../constants/index.js';
-import { INSPIRATION, AI_MOCK_SUGGESTIONS } from '../mocks/index.js';
+import { INSPIRATION } from '../constants/index.js';
+import { lettersApi, draftsApi, aiApi, ApiError } from '../api/index.js';
 import { useUI } from '../store/ui.jsx';
 import { loadWriteDraft, clearWriteDraft, useWriteDraftAutosave } from '../store/writeDraft.js';
 
@@ -16,11 +19,15 @@ export function WriteScreen() {
   const { toast } = useUI();
   const saved = state ? null : loadWriteDraft(); // 直接进入且无参数时恢复自动暂存
   const params = state || saved || {};
-  const isFirst = params.isFirst !== false;
-  const required = isFirst ? FIRST_MIN : REPLY_MIN;
+  const replyToId = params.replyToId || null;
+  const isFirst = !replyToId && params.isFirst !== false;
+  const required = replyToId ? REPLY_MIN : isFirst ? FIRST_MIN : REPLY_MIN;
   const [title, setTitle] = useState(params.draftTitle || '');
   const [content, setContent] = useState(params.draftBody || '');
+  const [draftId, setDraftId] = useState(params.draftId || null);
+  const [targetUid] = useState(params.targetUid || '');
   const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [inspireOpen, setInspireOpen] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiKind, setAiKind] = useState(null);
@@ -29,26 +36,42 @@ export function WriteScreen() {
   const [aiErr, setAiErr] = useState('');
 
   useWriteDraftAutosave({
+    targetUid,
     targetNickname: params.targetNickname || '',
     isFirst,
-    draftId: params.draftId,
+    draftId,
     draftTitle: title,
     draftBody: content,
   });
 
-  /* AI 续写占位：M6 接通 POST /ai/inspiration（shimmer 加载 → 候选点击插入） */
-  function aiContinue() {
+  /* AI 续写：POST /ai/inspiration（服务端取最近信件拼 prompt → 3 条候选） */
+  async function aiContinue() {
     setAiKind('continue'); setAiErr(''); setAiResults([]); setAiPolishText('');
     setAiBusy(true);
-    setTimeout(() => { setAiResults(AI_MOCK_SUGGESTIONS); setAiBusy(false); }, 900);
+    try {
+      const { suggestions } = await aiApi.getWritingInspiration({ draft: content, ...(targetUid ? { targetUid } : {}) });
+      setAiResults(suggestions || []);
+    } catch (err) {
+      // 9002/未配置降级已由 client 层 toast；此处给面板内提示
+      setAiErr(err instanceof ApiError ? err.message : '灵感暂时休息了，稍后再试～');
+    } finally {
+      setAiBusy(false);
+    }
   }
-  /* AI 润色占位：M6 接通 POST /ai/polish（正文 ≥10 字） */
-  function aiPolish() {
+  /* AI 润色：POST /ai/polish（正文 ≥10 字，不足服务端 1002） */
+  async function aiPolish() {
     setAiKind('polish'); setAiErr(''); setAiResults([]); setAiPolishText('');
     const draft = content.trim();
     if (countWords(draft) < 10) { setAiErr('先写下一点内容，我再帮你润色～'); return; }
     setAiBusy(true);
-    setTimeout(() => { setAiPolishText(draft); setAiBusy(false); }, 900);
+    try {
+      const { polished } = await aiApi.polishLetter(draft);
+      setAiPolishText(polished || '');
+    } catch (err) {
+      setAiErr(err instanceof ApiError ? err.message : '润色暂时不可用，稍后再试～');
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   function insertLine(ln) { setContent((c) => (c ? c + '\n\n' + ln : ln)); }
@@ -57,17 +80,51 @@ export function WriteScreen() {
   const pct = Math.min(100, (wc / required) * 100);
 
   function back() { navigate(-1); }
-  function send() {
-    if (!canSend || sending) return;
+
+  async function saveDraft() {
+    if (savingDraft) return;
+    setSavingDraft(true);
+    try {
+      const res = await draftsApi.saveDraft({
+        ...(draftId ? { id: draftId } : {}),
+        ...(targetUid ? { targetUid } : {}),
+        title,
+        content,
+        isFirst,
+      });
+      if (res?._id) setDraftId(res._id);
+      toast('草稿已保存');
+    } catch {
+      /* 网络异常已由 client 层 toast */
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
+  async function send() {
+    if (sending) return;
+    if (!canSend) { toast(`还需 ${required - wc} 字`); return; }
+    if (!replyToId && !targetUid) { toast('先选择收信人'); return; }
     setSending(true);
-    // M6 接通 POST /letters（寄出成功后服务端删除对应草稿）
-    setTimeout(() => { clearWriteDraft(); toast('信件已寄出 ✦'); back(); }, 700);
+    try {
+      if (replyToId) await lettersApi.replyLetter(replyToId, { title, content });
+      else await lettersApi.sendLetter({ targetUid, title, content });
+      clearWriteDraft();
+      toast('信件已寄出 ✦');
+      navigate('/inbox');
+    } catch (err) {
+      // 1002 字数 / 1001 违规 / 1003 拒收：就地提示不关页
+      if (err instanceof ApiError && [1001, 1002, 1003].includes(err.code)) toast(err.message);
+      // 9001 已由 client 层 toast
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
     <div className="page is-overlay">
       <StatusBar dark />
-      <NavBar title="写信" onBack={back} />
+      <NavBar title={replyToId ? '回信' : '写信'} onBack={back} />
       <div className="recipient-bar">
         <span className="recipient-label">致：</span>
         <span className="recipient-name">{params.targetNickname || '请选择收信人'}</span>
@@ -92,7 +149,7 @@ export function WriteScreen() {
           <span className="inspire-label">灵感</span>
         </button>
         <div className="send-right">
-          <div className="btn btn-ghost" style={{ padding: '11px 16px' }} onClick={() => toast('草稿已保存')}>存草稿</div>
+          <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} style={{ padding: '11px 16px' }} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>
           <div className={'btn btn-primary' + (!canSend || sending ? ' btn-disabled' : '')} onClick={send}>{sending ? '寄出中...' : '封存寄出'}</div>
         </div>
       </div>
