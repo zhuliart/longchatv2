@@ -17,6 +17,18 @@ longchatv2/
 └── deploy/        # Docker 编排与部署脚本
 ```
 
+## 零安装云端启动（GitHub Codespaces · 推荐给不想本地装环境的人）
+
+无需在电脑上装 Node/Docker，全程浏览器内运行：
+
+1. 在本仓库页面点 **Code → Codespaces → Create codespace on main**；
+2. 首次创建会自动装依赖、起 MongoDB、生成测试数据（约 2–3 分钟，看终端进度）；
+3. 完成后在终端运行 **`bash .devcontainer/run.sh`** 启动整站；
+4. 点弹出的 **5173** 端口链接（或「端口 / Ports」面板里的地球图标）打开网站；
+5. 用测试账号 `shiguang@test.com` / `test123456` 登录。
+
+配置见 `.devcontainer/`。停止：终端里按 `Ctrl+C`。
+
 ## 本地开发快速启动
 
 要求：Node.js ≥ 20，Docker（本地数据库用）。
