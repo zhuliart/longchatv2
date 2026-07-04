@@ -1,12 +1,14 @@
 /* App 装配（T5.7）：路由守卫（无 token → 登录页；hasProfile=false → 强制引导页）
    + 响应式一体（<768px 移动版式 / ≥768px 桌面壳层，断点 1160/960 见 desktop.css）
    + 主题锁定（黛雾 + #9C7B86 + 黑体，机制保留不出 UI）。 */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { AuthProvider, useAuth } from './store/auth.jsx';
 import { UIProvider, useUI } from './store/ui.jsx';
+import { UserProvider } from './store/user.jsx';
 import { MoodsProvider } from './store/moods.jsx';
+import { setApiHandlers } from './api/index.js';
 import { appRootClass, appRootStyle } from './theme.js';
 import { useIsDesktop } from './utils/useMediaQuery.js';
 
@@ -144,7 +146,16 @@ function DesktopRoutes() {
 
 function AppRoot() {
   const desktop = useIsDesktop();
-  const { dark } = useUI();
+  const { dark, toast } = useUI();
+
+  /* 把 toast 与 401 处理注入 api client 层（页面不直连 fetch，统一由此层兜底） */
+  useEffect(() => {
+    setApiHandlers({
+      toast,
+      onUnauthorized: () => window.dispatchEvent(new Event('pc:unauthorized')),
+    });
+  }, [toast]);
+
   return (
     <div className={appRootClass({ dark, desktop })} style={appRootStyle()}>
       {desktop ? <DesktopRoutes /> : <MobileRoutes />}
@@ -157,9 +168,11 @@ export default function App() {
   return (
     <AuthProvider>
       <UIProvider>
-        <MoodsProvider>
-          <AppRoot />
-        </MoodsProvider>
+        <UserProvider>
+          <MoodsProvider>
+            <AppRoot />
+          </MoodsProvider>
+        </UserProvider>
       </UIProvider>
     </AuthProvider>
   );

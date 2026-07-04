@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusBar } from '../components/chrome.jsx';
-import { ME } from '../mocks/index.js';
+import { authApi } from '../api/index.js';
 import { useAuth } from '../store/auth.jsx';
 import { useUI } from '../store/ui.jsx';
 
@@ -52,25 +52,39 @@ export function LoginCard({ form, onSubmit }) {
   );
 }
 
-/* 登录提交（M5 mock：写入本地 token；M6 换 POST /auth/login|register） */
+/* 登录提交（T6.4）：POST /auth/register|login → 发 token 存登录态 → 分流。
+   register 后 hasProfile=false，路由守卫强制进入 /onboarding 闭环；
+   login 按 hasProfile 分流（未完成引导者同样被守卫导向引导页）。
+   业务错误（账号已注册 / 账号或密码不正确）已由 client 层 toast，提交处仅停在原页。 */
 export function useLoginSubmit(form) {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const { toast } = useUI();
-  return (mode) => {
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async (mode) => {
+    if (submitting) return;
     if (!form.canGo) {
       toast(!form.accountOk ? '请输入有效的邮箱或手机号' : !form.pwdOk ? '密码至少 6 位' : '两次密码不一致');
       return;
     }
-    if (mode === 'register') {
-      login('mock-token', false); // 守卫将强制进入 /onboarding
-      toast('账号已创建 ✦');
-    } else {
-      login('mock-token', true);
-      toast('欢迎回来，' + ME.nickname + ' ✦');
+    setSubmitting(true);
+    try {
+      const account = form.account.trim();
+      const tokens =
+        mode === 'register'
+          ? await authApi.register(account, form.pwd)
+          : await authApi.login(account, form.pwd);
+      signIn(tokens);
+      toast(mode === 'register' ? '账号已创建 ✦' : '欢迎回来 ✦');
+      navigate('/', { replace: true });
+    } catch {
+      /* 错误提示已由 client 层 toast，停留在登录页 */
+    } finally {
+      setSubmitting(false);
     }
-    navigate('/', { replace: true });
   };
+  submit.submitting = submitting;
+  return submit;
 }
 
 export function LoginScreen() {

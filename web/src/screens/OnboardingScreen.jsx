@@ -6,7 +6,9 @@ import { useNavigate } from 'react-router-dom';
 import { StatusBar, NavBar } from '../components/chrome.jsx';
 import { countWords } from '../utils/countWords.js';
 import { PRESET_TAGS } from '../constants/index.js';
+import { usersApi, ApiError } from '../api/index.js';
 import { useAuth } from '../store/auth.jsx';
+import { useUser } from '../store/user.jsx';
 import { useUI } from '../store/ui.jsx';
 
 const ACTIVE_OPTIONS = [['morning', '🌅', '清晨'], ['afternoon', '☀', '午后'], ['night', '🌙', '夜深']];
@@ -19,6 +21,7 @@ const FREQ_OPTIONS = [
 export function OnboardingScreen() {
   const navigate = useNavigate();
   const { hasProfile, completeProfile, logout } = useAuth();
+  const { refresh } = useUser();
   const { toast } = useUI();
   const [step, setStep] = useState(1);
   const [nickname, setNickname] = useState('');
@@ -26,6 +29,7 @@ export function OnboardingScreen() {
   const [tags, setTags] = useState([]);
   const [activeTime, setActiveTime] = useState('');
   const [freq, setFreq] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const introCount = countWords(intro);
   const introValid = introCount >= 20 && introCount <= 60;
 
@@ -36,10 +40,33 @@ export function OnboardingScreen() {
   }
   function go2() { if (!nickname.trim()) return toast('请填写昵称'); if (!introValid) return toast('介绍需 20–60 字'); setStep(2); }
   function go3() { if (tags.length < 3) return toast('至少选 3 个标签'); setStep(3); }
-  function finish() {
-    completeProfile();
-    toast('欢迎来到平常 ✦');
-    navigate('/', { replace: true });
+  async function finish() {
+    if (submitting) return;
+    // 重看引导模式（已注册）：服务端拒绝重复提交，直接回首页
+    if (hasProfile) {
+      navigate('/', { replace: true });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await usersApi.submitProfile({
+        nickname: nickname.trim(),
+        intro: intro.trim(),
+        tags,
+        ...(activeTime ? { activeTime } : {}),
+        ...(freq ? { letterFreq: freq } : {}),
+      });
+      completeProfile(); // hasProfile=true → 守卫放行首页，user store 拉取 /users/me
+      await refresh();
+      toast('欢迎来到平常 ✦');
+      navigate('/', { replace: true });
+    } catch (err) {
+      // 1001 违规 / 1002 字数：抛到此处（未 toast），就地提示不关页
+      if (err instanceof ApiError && (err.code === 1001 || err.code === 1002)) toast(err.message);
+      // 9001 等已由 client 层 toast
+    } finally {
+      setSubmitting(false);
+    }
   }
   /* 引导中返回 = 放弃入驻回登录；重看模式返回上一页 */
   function back() {

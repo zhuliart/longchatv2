@@ -886,6 +886,55 @@ body {
 }
 .empty-state .empty-icon { font-size: 40px; opacity: .8; }
 .empty-state .empty-sub { font-size: 13px; opacity: .8; }
+.empty-state .empty-action { margin-top: 14px; }
+
+/* 边界状态（T6.5）：加载骨架 / spinner / 加载失败重试 */
+.skeleton-list { display: flex; flex-direction: column; gap: 12px; padding: 4px 0; }
+.skeleton-card {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 15px; border-radius: 16px;
+  background: var(--color-card); box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.skeleton-avatar { width: 42px; height: 42px; border-radius: 50%; flex: none; }
+.skeleton-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; padding-top: 3px; }
+.skeleton-line { height: 11px; border-radius: 6px; display: block; }
+.skeleton-line.w40 { width: 40%; }
+.skeleton-line.w60 { width: 60%; }
+.skeleton-line.w90 { width: 90%; }
+.skeleton-avatar, .skeleton-line {
+  background: linear-gradient(100deg,
+    color-mix(in oklab, var(--color-ink) 7%, transparent) 30%,
+    color-mix(in oklab, var(--color-ink) 14%, transparent) 50%,
+    color-mix(in oklab, var(--color-ink) 7%, transparent) 70%);
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer { 0% { background-position: 180% 0; } 100% { background-position: -80% 0; } }
+
+.spinner-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 60px 24px; color: var(--color-ink-secondary);
+}
+.spinner-ring {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 2.5px solid color-mix(in oklab, var(--color-accent) 22%, transparent);
+  border-top-color: var(--color-accent);
+  animation: spinner-turn .8s linear infinite;
+}
+.spinner-label { font-size: 13px; font-family: var(--font-serif); }
+@keyframes spinner-turn { to { transform: rotate(360deg); } }
+
+.load-error {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 48px 28px; color: var(--color-ink-secondary); text-align: center;
+}
+.load-error-icon { font-size: 26px; letter-spacing: .1em; opacity: .7; }
+.load-error-msg { font-size: 14px; font-family: var(--font-serif); }
+.load-error-retry { margin-top: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-avatar, .skeleton-line, .spinner-ring { animation: none; }
+}
 
 .text-clamp-2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .text-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
