@@ -134,10 +134,11 @@ function DesktopRoutes() {
           <Route path="/write" element={<DWrite />} />
         </Route>
         <Route path="/letter/:id" element={<LetterRedirect />} />
-        {/* 桌面原型未设计匹配/对方主页/编辑独立视图 → 回落 */}
+        {/* 桌面原型未设计匹配/对方主页独立视图 → 回落 */}
         <Route path="/match" element={<Navigate to="/" replace />} />
         <Route path="/peer/:uid" element={<Navigate to="/" replace />} />
-        <Route path="/edit" element={<Navigate to="/me" replace />} />
+        {/* 编辑资料：复用移动端表单，居中呈现（与「重看引导」同一套桌面壳） */}
+        <Route path="/edit" element={<div className="dsk-onboard"><EditScreen /></div>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
