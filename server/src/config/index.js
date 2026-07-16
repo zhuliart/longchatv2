@@ -18,15 +18,8 @@ need('MONGO_URI');
 need('JWT_SECRET');
 
 if (isProd) {
+  // 安全关键项：生产必须提供
   need('CORS_ORIGIN');
-  need('ALI_GREEN_AK_ID');
-  need('ALI_GREEN_AK_SECRET');
-  need('ALI_GREEN_REGION');
-  const provider = env.AI_PROVIDER || 'dashscope';
-  if (provider === 'dashscope') need('DASHSCOPE_API_KEY');
-  else if (provider === 'anthropic') need('ANTHROPIC_API_KEY');
-  else missing.push(`AI_PROVIDER（未知值 "${provider}"，应为 dashscope | anthropic）`);
-
   if (env.JWT_SECRET && env.JWT_SECRET.length < 32) {
     missing.push('JWT_SECRET（生产环境长度必须 ≥32，建议 openssl rand -hex 32）');
   }
@@ -37,6 +30,23 @@ if (missing.length) {
     `[config] 环境变量缺失或不合法，启动中止：\n  - ${missing.join('\n  - ')}\n` +
       '请参照 server/.env.example 补全。'
   );
+}
+
+// 可选的第三方集成：未配置不阻断启动，仅告警（内容审核 fail-open、AI 灵感降级）。
+if (isProd) {
+  const provider = env.AI_PROVIDER || 'dashscope';
+  const warn = [];
+  if (!env.ALI_GREEN_AK_ID || !env.ALI_GREEN_AK_SECRET) {
+    warn.push('内容安全 AK 未配置 → UGC 仅走本地敏感词快筛（ALI_GREEN_AK_ID/SECRET）');
+  }
+  const aiKey = provider === 'anthropic' ? env.ANTHROPIC_API_KEY : env.DASHSCOPE_API_KEY;
+  if (!aiKey) {
+    warn.push(`AI 灵感密钥未配置 → 续写/润色降级返回友好提示（${provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'DASHSCOPE_API_KEY'}）`);
+  }
+  if (warn.length) {
+    // eslint-disable-next-line no-console
+    console.warn(`[config] 生产环境可选集成未配置：\n  - ${warn.join('\n  - ')}`);
+  }
 }
 
 const int = (key, def) => {

@@ -1,0 +1,33 @@
+# 生产编排（M8）：mongo（仅内网）+ server（Node）+ web（nginx 托管前端 + 反代 /api）。
+# 用法：在 deploy/ 目录下 `docker compose up -d --build`
+# 前置：同目录放好 .env.production（见 .env.production.example），权限 600，绝不入库。
+services:
+  mongo:
+    image: mongo:6
+    restart: always
+    env_file: .env.production        # 读 MONGO_INITDB_ROOT_USERNAME / PASSWORD
+    volumes:
+      - mongo-data:/data/db
+    # 不映射端口到宿主机 → 不对公网暴露，仅 compose 内网可达
+
+  server:
+    build: ../server
+    restart: always
+    env_file: .env.production
+    depends_on:
+      - mongo
+    expose:
+      - "3000"                       # 仅 compose 内网，nginx 反代访问
+
+  web:
+    build: ../web
+    restart: always
+    ports:
+      - "80:80"                      # 对外入口（HTTP）；绑域名 + 证书后再加 443
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - server
+
+volumes:
+  mongo-data: {}
