@@ -31,7 +31,7 @@ export function DProfile() {
           <div className="my-name">{me.nickname}</div>
           <div className="my-intro">{me.intro}</div>
         </div>
-        <div className="mood-edit-btn" onClick={() => toast('编辑资料见移动端版式 ✎')}>编辑</div>
+        <div className="mood-edit-btn" onClick={() => navigate('/edit')}>编辑</div>
       </div>
       <div className="my-tags">{me.tags.map((t) => <span key={t} className="tag">{t}</span>)}</div>
 
