@@ -157,3 +157,26 @@ test('requireProfile：未完成引导访问业务接口 → next(9001 请先完
   assert.equal(err.code, 9001);
   assert.match(err.message, /完成注册引导/);
 });
+
+/* ---------- 客户端本地「今天」（listing.clientYmd / shiftYmd） ---------- */
+
+const { shiftYmd, clientYmd } = await import('../src/utils/listing.js');
+
+test('shiftYmd：跨月/跨年偏移正确', () => {
+  assert.equal(shiftYmd('2026-07-19', -1), '2026-07-18');
+  assert.equal(shiftYmd('2026-07-31', 1), '2026-08-01');
+  assert.equal(shiftYmd('2026-01-01', -1), '2025-12-31');
+});
+
+test('clientYmd：合法且在服务端±1天内 → 采用客户端日期；越界/非法 → 回退服务端', () => {
+  const mk = (v) => ({ get: (h) => (h === 'X-Client-Date' ? v : null) });
+  const server = ymd();
+  // 服务端当天 ±1 天：采用
+  assert.equal(clientYmd(mk(server)), server);
+  assert.equal(clientYmd(mk(shiftYmd(server, 1))), shiftYmd(server, 1));
+  assert.equal(clientYmd(mk(shiftYmd(server, -1))), shiftYmd(server, -1));
+  // 越界（+2 天）/ 非法 / 缺失：回退服务端当天
+  assert.equal(clientYmd(mk(shiftYmd(server, 2))), server);
+  assert.equal(clientYmd(mk('not-a-date')), server);
+  assert.equal(clientYmd(mk(null)), server);
+});

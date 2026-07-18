@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ok, ERR, AppError } from '../utils/response.js';
 import { countWords } from '../utils/countWords.js';
-import { asObjectId, ymd, isYmd } from '../utils/listing.js';
+import { asObjectId, clientYmd, isYmd } from '../utils/listing.js';
 import { Mood, Letter, EMOTIONS, VISIBILITIES } from '../models/index.js';
 import { assertClean } from '../services/moderation.js';
 
@@ -10,7 +10,7 @@ const router = Router();
 /** 去年今日（契约 §6）：优先 mood，无则 letter，都无 data:null —— 须在 /:date 类路由之前定义 */
 router.get('/memory-today', async (req, res, next) => {
   try {
-    const today = ymd();
+    const today = clientYmd(req); // 「今天」以使用者电脑当地日期为准
     const lastYear = `${parseInt(today.slice(0, 4), 10) - 1}${today.slice(4)}`;
 
     const mood = await Mood.findOne({ uid: req.uid, date: lastYear }).lean();
@@ -57,7 +57,7 @@ router.put('/:date', async (req, res, next) => {
   try {
     const date = req.params.date;
     if (!isYmd(date)) throw new AppError(ERR.BAD_REQUEST, '日期格式须为 YYYY-MM-DD');
-    const today = ymd();
+    const today = clientYmd(req); // 「今天」以使用者电脑当地日期为准（±1 天安全边界）
     if (date > today) throw new AppError(ERR.BAD_REQUEST, '不能记录未来的心情');
     if (date < today) throw new AppError(ERR.BAD_REQUEST, '往日记录仅可修改可见性');
 

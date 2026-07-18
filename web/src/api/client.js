@@ -35,6 +35,13 @@ export class ApiError extends Error {
 
 const NET_MSG = '网络异常，请稍后重试';
 
+/* 使用者电脑当地日期（YYYY-MM-DD）：随请求带给服务端，令「今天」按各人本地时间判定 */
+function localDate() {
+  const d = new Date();
+  const p = (x) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 /* 单次网络往返：返回解析后的 { code, data, message }；HTTP 401 直接抛 ApiError(401) */
 async function once(method, path, body) {
   const token = readToken();
@@ -42,6 +49,7 @@ async function once(method, path, body) {
     method,
     headers: {
       'Content-Type': 'application/json',
+      'X-Client-Date': localDate(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
