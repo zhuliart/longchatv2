@@ -1,11 +1,11 @@
-/* 桌面此刻（T5.5 / T6.2 #1#3#7、T6.3 记心情）：双栏 1fr+392px —— 左=今日心情卡+去年的今天；
-   右=最近的信。数据：GET /users/me、/moods/memory-today、/letters/inbox。 */
+/* 桌面此刻（T5.5 / T6.2 #1#3#6#7、T6.3 记心情·跳过）：双栏 1fr+392px —— 左=今日心情卡+去年的今天；
+   右=最近的信；下方=今日灵魂推荐。数据：GET /users/me、/moods/memory-today、/letters/inbox、/matches/daily。 */
 import { useNavigate } from 'react-router-dom';
 import { MoodFace, MoodBadge, IntensityDots } from '../components/primitives.jsx';
-import { EnvelopeCard } from '../components/cards.jsx';
+import { EnvelopeCard, SoulCard } from '../components/cards.jsx';
 import { MoodWidget } from '../components/MoodWidget.jsx';
-import { SkeletonList } from '../components/states.jsx';
-import { lettersApi, moodsApi, useResource, ApiError } from '../api/index.js';
+import { SkeletonList, ErrorState } from '../components/states.jsx';
+import { lettersApi, moodsApi, matchesApi, useResource, ApiError } from '../api/index.js';
 import { greeting } from '../utils/date.js';
 import { useMoods } from '../store/moods.jsx';
 import { useUser } from '../store/user.jsx';
@@ -19,7 +19,9 @@ export function DHome() {
 
   const memory = useResource(() => moodsApi.getMemoryToday(), []);
   const inbox = useResource(() => lettersApi.getInbox(0), []);
+  const matches = useResource(() => matchesApi.getDailyRecommend(), []);
   const mem = memory.data;
+  const souls = matches.data || [];
 
   async function onMoodSaved(m) {
     try {
@@ -27,6 +29,18 @@ export function DHome() {
       toast('情绪已记录 ✦');
     } catch (err) {
       if (err instanceof ApiError && (err.code === 1001 || err.code === 1002)) toast(err.message);
+    }
+  }
+
+  function writeTo(m) {
+    navigate('/write', { state: { targetUid: m.profile._id, targetNickname: m.profile.nickname, isFirst: true } });
+  }
+  async function skip(m) {
+    matches.setData((arr) => (arr || []).filter((x) => x._id !== m._id));
+    try {
+      await matchesApi.skipUser(m.profile._id);
+    } catch {
+      /* 网络异常已由 client 层 toast */
     }
   }
 
@@ -92,6 +106,37 @@ export function DHome() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 今日灵魂推荐 */}
+      <div className="card dsk-card dsk-souls-card">
+        <div className="dsk-card-title">
+          <span>今日灵魂</span>
+          <span className="dsk-souls-note">每日更新 · 真诚相遇</span>
+        </div>
+        {matches.loading ? (
+          <SkeletonList rows={2} />
+        ) : matches.error ? (
+          <ErrorState onRetry={matches.reload} />
+        ) : souls.length === 0 ? (
+          <div className="empty-state" style={{ padding: '32px 8px' }}>
+            <span className="empty-icon">☾</span>
+            <span>今天的推荐已看完</span>
+            <span className="empty-sub">明天还会有新的灵魂与你相遇</span>
+          </div>
+        ) : (
+          <div className="dsk-souls">
+            {souls.map((m) => (
+              <div key={m._id} className="dsk-soul-item">
+                <SoulCard item={m} onClick={() => writeTo(m)} />
+                <div className="dsk-soul-actions">
+                  <div className="btn btn-ghost" onClick={() => skip(m)}>跳过</div>
+                  <div className="btn btn-primary" onClick={() => writeTo(m)}>写信给TA</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
