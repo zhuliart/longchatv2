@@ -30,6 +30,28 @@ export function ymd(d = new Date()) {
 
 export const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 
+/** YYYY-MM-DD 偏移若干天（按 UTC 计算，纯字符串进出，避免时区误差） */
+export function shiftYmd(s, days) {
+  const [y, m, d] = String(s).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  const p = (x) => String(x).padStart(2, '0');
+  return `${dt.getUTCFullYear()}-${p(dt.getUTCMonth() + 1)}-${p(dt.getUTCDate())}`;
+}
+
+/**
+ * 「今天」以**使用者电脑的当地日期**为准（前端经 X-Client-Date 头带上）。
+ * 为防伪造，只接受落在服务端当日 ±1 天内的客户端日期（覆盖全球所有真实时区
+ * UTC-12..+14）；非法或越界则回退服务端本地日期。
+ */
+export function clientYmd(req) {
+  const raw = req && typeof req.get === 'function' ? req.get('X-Client-Date') : null;
+  const serverToday = ymd();
+  if (isYmd(raw) && raw >= shiftYmd(serverToday, -1) && raw <= shiftYmd(serverToday, 1)) {
+    return raw;
+  }
+  return serverToday;
+}
+
 /** 今天 00:00（服务端本地时间），用于「当日」范围查询 */
 export function startOfToday() {
   const d = new Date();
