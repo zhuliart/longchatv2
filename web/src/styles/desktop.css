@@ -309,3 +309,4 @@ body { margin: 0; background: var(--color-bg); }
 .dsk-anon-more { text-align: center; padding: 8px 0 24px; }
 .dsk-anon-more .dim { color: var(--color-ink-secondary); font-size: 12.5px; font-family: var(--font-serif); }
 @media (max-width: 960px) { .dsk-anon-grid { column-count: 1; } }
+.dsk-anon-mask { color: var(--color-accent); font-size: 17px; line-height: 1; }

@@ -9,7 +9,7 @@ const DSK_NAV = [
   { key: 'home', path: '/', label: '此刻', glyph: '✶' },
   { key: 'inbox', path: '/inbox', label: '信箱', glyph: '✉' },
   { key: 'journey', path: '/journey', label: '旅程', glyph: '❍' },
-  { key: 'anon', path: '/anon', label: '匿名信', glyph: '🎭' },
+  { key: 'anon', path: '/anon', label: '匿名信', glyph: '◐' },
   { key: 'me', path: '/me', label: '我的', glyph: '❖' },
 ];
 

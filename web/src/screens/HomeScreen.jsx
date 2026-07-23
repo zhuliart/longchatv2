@@ -188,7 +188,7 @@ export function HomeScreen() {
         {/* 匿名信区（树洞）：发信匿名、回应实名、全员可看 */}
         <div className="section" style={{ marginBottom: 24 }}>
           <div className="section-header">
-            <span className="section-title ribbon"><span className="ribbon-banner"><span className="rb-mark">🎭</span>匿名信区</span></span>
+            <span className="section-title ribbon"><span className="ribbon-banner"><span className="rb-mark">◐</span>匿名信区</span></span>
             <span className="section-more" onClick={() => navigate('/anon')}>全部 ›</span>
           </div>
           {anon.loading ? (
@@ -202,7 +202,7 @@ export function HomeScreen() {
               <div key={post._id} className="card feed-card" onClick={() => setAnonOpen(post)}>
                 <div className="feed-card-header">
                   <div>
-                    <span className="feed-author-name">🎭 匿名笔友{post.isMine ? '（我）' : ''}</span>
+                    <span className="feed-author-name">◐ 匿名笔友{post.isMine ? '（我）' : ''}</span>
                     <span className="feed-date">{relativeTime(post.created_at)}</span>
                   </div>
                 </div>
