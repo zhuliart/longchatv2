@@ -310,3 +310,5 @@ body { margin: 0; background: var(--color-bg); }
 .dsk-anon-more .dim { color: var(--color-ink-secondary); font-size: 12.5px; font-family: var(--font-serif); }
 @media (max-width: 960px) { .dsk-anon-grid { column-count: 1; } }
 .dsk-anon-mask { color: var(--color-accent); font-size: 17px; line-height: 1; }
+.dsk-recipient.is-new { border-style: dashed; }
+.dsk-recipient-hint { font-size: 12.5px; color: var(--color-ink-secondary); font-family: var(--font-serif); }

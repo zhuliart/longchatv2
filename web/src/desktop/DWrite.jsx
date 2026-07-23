@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { countWords } from '../utils/countWords.js';
 import { FIRST_MIN, REPLY_MIN } from '../constants/index.js';
-import { lettersApi, draftsApi, aiApi, anonApi, useResource, ApiError } from '../api/index.js';
+import { lettersApi, draftsApi, aiApi, anonApi, matchesApi, useResource, ApiError } from '../api/index.js';
 import { useUI } from '../store/ui.jsx';
 import { loadWriteDraft, clearWriteDraft, useWriteDraftAutosave } from '../store/writeDraft.js';
 
@@ -28,7 +28,16 @@ export function DWrite() {
 
   const inbox = useResource(() => lettersApi.getInbox(0), []);
   const sent = useResource(() => lettersApi.getSent(0), []);
-  const recipients = useMemo(() => buildRecipients(inbox.data, sent.data), [inbox.data, sent.data]);
+  const matches = useResource(() => matchesApi.getDailyRecommend(), []);
+  // 可选收件人 = 通信过的人（回信门槛）+ 今日推荐（首封门槛，去重）
+  const recipients = useMemo(() => {
+    const known = buildRecipients(inbox.data, sent.data).map((r) => ({ ...r, first: false }));
+    const knownIds = new Set(known.map((r) => r.uid));
+    const recs = (matches.data || [])
+      .filter((m) => !knownIds.has(String(m.profile._id)))
+      .map((m) => ({ uid: String(m.profile._id), name: m.profile.nickname, first: true }));
+    return [...known, ...recs];
+  }, [inbox.data, sent.data, matches.data]);
 
   const replyToId = replyTo?._id || null;
   // 旧版把信区存成哨兵收件人 '__board'——恢复暂存时识别并清洗，避免出现假 chip
@@ -70,7 +79,7 @@ export function DWrite() {
 
   useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, board, draftId, draftTitle: title, draftBody: body });
 
-  function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(false); setBoardSel(false); }
+  function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(r.first !== false); setBoardSel(false); }
   function pickExt() { setBoardSel(false); } // 点回带入的收件人（推荐/主页进入的对象）
   function pickBoard() { setBoardSel((b) => !b); setIsAnon(false); } // 再点一次取消
 
@@ -168,9 +177,12 @@ export function DWrite() {
                 )}
                 {recipients.map((r) => (
                   <span key={r.uid}
-                    className={'dsk-recipient' + (!board && toUid === r.uid ? ' active' : '')}
-                    onClick={() => pick(r)}>{r.name}</span>
+                    className={'dsk-recipient' + (!board && toUid === r.uid ? ' active' : '') + (r.first ? ' is-new' : '')}
+                    onClick={() => pick(r)}>{r.name}{r.first ? ' ✧' : ''}</span>
                 ))}
+                {recipients.length === 0 && !toUid && (
+                  <span className="dsk-recipient-hint">暂无可选收件人 —— 通信过或今日推荐的人会出现在这里</span>
+                )}
                 <span className={'dsk-recipient is-board' + (board ? ' active' : '')} onClick={pickBoard}
                   title={board ? '再点一次取消，改寄给某个人' : '寄到所有人可见的匿名信区'}>
                   ◐ 匿名信区{board ? ' ✕' : ''}
