@@ -71,13 +71,23 @@ export function DWrite() {
   const [sugs, setSugs] = useState([]);
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [sentOk, setSentOk] = useState(false); // 寄出成功后关闭自动暂存（防清理后又被回存）
+  // 从自动暂存恢复的内容：给「清空重写」入口
+  const [showRestored, setShowRestored] = useState(!!saved && !!(saved.draftBody || saved.draftTitle));
 
   const board = boardSel;
   const required = board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : first ? FIRST_MIN : REPLY_MIN;
   const wc = countWords(body);
   const canSend = board ? wc >= required : (replyToId || toUid) && wc >= required;
 
-  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, board, draftId, draftTitle: title, draftBody: body });
+  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, board, draftId, draftTitle: title, draftBody: body }, !sentOk);
+
+  /* 清空重写：白纸开始（清字段 + 清暂存） */
+  function startBlank() {
+    setTitle(''); setBody(''); setToUid(''); setToName(''); setBoardSel(false); setFirst(true); setIsAnon(false);
+    clearWriteDraft();
+    setShowRestored(false);
+  }
 
   function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(r.first !== false); setBoardSel(false); }
   function pickExt() { setBoardSel(false); } // 点回带入的收件人（推荐/主页进入的对象）
@@ -130,12 +140,13 @@ export function DWrite() {
 
   async function send() {
     if (sending) return;
-    if (!replyToId && !toUid) { toast('先选择收信人'); return; }
+    if (!board && !replyToId && !toUid) { toast('先选择收信人'); return; }
     if (wc < required) { toast(`还差 ${required - wc} 字（至少 ${required} 字）`); return; }
     setSending(true);
     try {
       if (board) {
         await anonApi.sendAnonLetter({ title, content: body });
+        setSentOk(true); // 先停自动暂存，再清理，防 400ms 竞态回存
         clearWriteDraft();
         toast('已寄往匿名信区 ✦ 陌生的回应会慢慢抵达');
         setTimeout(() => navigate('/'), 600);
@@ -143,6 +154,7 @@ export function DWrite() {
       }
       if (replyToId) await lettersApi.replyLetter(replyToId, { title, content: body });
       else await lettersApi.sendLetter({ targetUid: toUid, title, content: body, isAnonymous: isAnon });
+      setSentOk(true); // 先停自动暂存，再清理，防 400ms 竞态回存
       clearWriteDraft();
       toast(isAnon ? '信已匿名封存寄出 ✦' : '信已封存寄出 ✦ 它将在合适的时刻抵达');
       setTimeout(onBack, 600);
@@ -196,6 +208,13 @@ export function DWrite() {
               </label>
             )}
           </div>
+          {showRestored && (
+            <div className="dsk-restore-bar">
+              已恢复上次未寄出的内容
+              <span className="dsk-restore-clear" onClick={startBlank}>清空重写</span>
+              <span className="dsk-restore-dismiss" onClick={() => setShowRestored(false)}>继续写 ✓</span>
+            </div>
+          )}
           {board && <div className="dsk-board-note">这封信会出现在所有人的「匿名信区」，署名固定为「匿名笔友」。</div>}
           {isAnon && !board && <div className="dsk-board-note">对方只会看到「匿名笔友」，不会知道这封信来自你。</div>}
           <input className="dsk-write-title" placeholder="标题（可不填，≤30字）" maxLength={30} value={title} onChange={(e) => setTitle(e.target.value)} />

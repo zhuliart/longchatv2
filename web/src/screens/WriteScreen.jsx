@@ -38,14 +38,16 @@ export function WriteScreen() {
   const [aiPolishText, setAiPolishText] = useState('');
   const [aiErr, setAiErr] = useState('');
 
+  const [sentOk, setSentOk] = useState(false); // 寄出成功后关闭自动暂存（防清理后又被回存）
   useWriteDraftAutosave({
     targetUid,
     targetNickname: params.targetNickname || '',
     isFirst,
+    board,
     draftId,
     draftTitle: title,
     draftBody: content,
-  });
+  }, !sentOk);
 
   /* AI 续写：POST /ai/inspiration（服务端取最近信件拼 prompt → 3 条候选） */
   async function aiContinue() {
@@ -113,6 +115,7 @@ export function WriteScreen() {
       if (board) await anonApi.sendAnonLetter({ title, content });
       else if (replyToId) await lettersApi.replyLetter(replyToId, { title, content });
       else await lettersApi.sendLetter({ targetUid, title, content, isAnonymous: isAnon });
+      setSentOk(true); // 先停自动暂存，再清理，防 400ms 竞态回存
       clearWriteDraft();
       toast(board ? '已寄往匿名信区 ✦' : isAnon ? '信已匿名寄出 ✦' : '信件已寄出 ✦');
       navigate(board ? '/' : '/inbox');
