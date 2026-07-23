@@ -8,6 +8,7 @@ import moodsRouter from './moods.js';
 import plazaRouter from './plaza.js';
 import matchesRouter from './matches.js';
 import aiRouter from './ai.js';
+import anonRouter from './anon.js';
 import { requireAuth, requireProfile } from '../middlewares/auth.js';
 
 /**
@@ -30,5 +31,6 @@ api.use('/moods', moodsRouter);
 api.use('/plaza', plazaRouter);
 api.use('/matches', matchesRouter);
 api.use('/ai', aiRouter);
+api.use('/anon', anonRouter);
 
 export default api;

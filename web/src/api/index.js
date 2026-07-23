@@ -9,3 +9,4 @@ export * as moodsApi from './moods.js';
 export * as plazaApi from './plaza.js';
 export * as matchesApi from './matches.js';
 export * as aiApi from './ai.js';
+export * as anonApi from './anon.js';

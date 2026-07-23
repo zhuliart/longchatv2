@@ -1,14 +1,15 @@
-/* 桌面写信（T5.5 / T6.3 封存寄出·回信·存草稿·AI）：1fr+316px —— 左=信纸（收信人 chips、标题、
-   横线正文、字数进度、存草稿/封存寄出）；右=AI 灵感栏 + 写信约定卡。
-   收件人 chips 由通信关系派生（收件箱/已发出去重）；寄出 POST /letters（回信 /letters/:id/reply）；
-   存草稿 POST /drafts；AI POST /ai/inspiration | /ai/polish。 */
+/* 桌面写信（T5.5 / T6.3 封存寄出·回信·存草稿·AI / 匿名）：1fr+316px —— 左=信纸（收信人 chips
+   + 匿名信区 + 匿名寄出、标题、横线正文、字数进度、存草稿/封存寄出）；右=AI 灵感栏 + 写信约定卡。
+   寄出 POST /letters（回信 /letters/:id/reply；匿名信区 POST /anon/letters）；存草稿 POST /drafts。 */
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { countWords } from '../utils/countWords.js';
 import { FIRST_MIN, REPLY_MIN } from '../constants/index.js';
-import { lettersApi, draftsApi, aiApi, useResource, ApiError } from '../api/index.js';
+import { lettersApi, draftsApi, aiApi, anonApi, useResource, ApiError } from '../api/index.js';
 import { useUI } from '../store/ui.jsx';
 import { loadWriteDraft, clearWriteDraft, useWriteDraftAutosave } from '../store/writeDraft.js';
+
+const BOARD = '__board'; // 「匿名信区」哨兵收件人
 
 /* 收件箱 + 已发出 → 去重的通信对象（皆为非首封对象） */
 function buildRecipients(inbox, sent) {
@@ -33,7 +34,8 @@ export function DWrite() {
 
   const replyToId = replyTo?._id || null;
   const [toUid, setToUid] = useState(
-    replyTo ? String(replyTo.from_uid || '')
+    params.board ? BOARD
+      : replyTo ? String(replyTo.from_uid || '')
       : draft?.to_uid ? String(draft.to_uid)
       : params.targetUid || (saved && saved.targetUid) || ''
   );
@@ -42,6 +44,15 @@ export function DWrite() {
       : draft?.receiverNickname ? draft.receiverNickname
       : params.targetNickname || (saved && saved.targetNickname) || ''
   );
+  // 是否首封：回信/通信对象=false；推荐/主页带入按 params.isFirst；未知默认 true（宁高勿低，服务端复校）
+  const [first, setFirst] = useState(
+    replyTo ? false
+      : draft ? (draft.required || FIRST_MIN) >= FIRST_MIN
+      : params.targetUid ? params.isFirst !== false
+      : saved?.targetUid ? saved.isFirst !== false
+      : true
+  );
+  const [isAnon, setIsAnon] = useState(false); // 匿名寄给指定收件人
   const [title, setTitle] = useState(replyTo ? '回信：' + (replyTo.title || '') : draft ? draft.title : (saved && saved.draftTitle) || '');
   const [body, setBody] = useState(draft ? String(draft.excerpt || '').replace(/…$/, '') : (saved && saved.draftBody) || '');
   const [draftId, setDraftId] = useState(draft?._id || (saved && saved.draftId) || null);
@@ -50,19 +61,21 @@ export function DWrite() {
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
-  const isFirst = replyToId ? false : !toUid ? true : false; // 选定通信对象皆非首封
-  const required = replyToId ? REPLY_MIN : draft ? draft.required : isFirst ? FIRST_MIN : REPLY_MIN;
+  const board = toUid === BOARD;
+  const required = board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : first ? FIRST_MIN : REPLY_MIN;
   const wc = countWords(body);
   const canSend = (replyToId || toUid) && wc >= required;
 
-  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst, draftId, draftTitle: title, draftBody: body });
+  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, draftId, draftTitle: title, draftBody: body });
 
-  function pick(r) { setToUid(r.uid); setToName(r.name); }
+  function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(false); }
+  function pickBoard() { setToUid(BOARD); setToName('匿名信区'); setIsAnon(false); }
 
   async function aiContinue() {
     setAiBusy(true); setSugs([]);
     try {
-      const { suggestions } = await aiApi.getWritingInspiration({ draft: body, ...(toUid ? { targetUid: toUid } : {}) });
+      const target = toUid && toUid !== BOARD ? { targetUid: toUid } : {};
+      const { suggestions } = await aiApi.getWritingInspiration({ draft: body, ...target });
       setSugs(suggestions || []);
     } catch {
       /* 降级/异常已由 client 层 toast */
@@ -91,8 +104,8 @@ export function DWrite() {
     try {
       const res = await draftsApi.saveDraft({
         ...(draftId ? { id: draftId } : {}),
-        ...(toUid ? { targetUid: toUid } : {}),
-        title, content: body, isFirst,
+        ...(toUid && !board ? { targetUid: toUid } : {}),
+        title, content: body, isFirst: first,
       });
       if (res?._id) setDraftId(res._id);
       toast('草稿已保存 ✦');
@@ -109,10 +122,17 @@ export function DWrite() {
     if (wc < required) { toast(`还差 ${required - wc} 字（至少 ${required} 字）`); return; }
     setSending(true);
     try {
+      if (board) {
+        await anonApi.sendAnonLetter({ title, content: body });
+        clearWriteDraft();
+        toast('已寄往匿名信区 ✦ 陌生的回应会慢慢抵达');
+        setTimeout(() => navigate('/'), 600);
+        return;
+      }
       if (replyToId) await lettersApi.replyLetter(replyToId, { title, content: body });
-      else await lettersApi.sendLetter({ targetUid: toUid, title, content: body });
+      else await lettersApi.sendLetter({ targetUid: toUid, title, content: body, isAnonymous: isAnon });
       clearWriteDraft();
-      toast('信已封存寄出 ✦ 它将在合适的时刻抵达');
+      toast(isAnon ? '信已匿名封存寄出 ✦' : '信已封存寄出 ✦ 它将在合适的时刻抵达');
       setTimeout(onBack, 600);
     } catch (err) {
       if (err instanceof ApiError && [1001, 1002, 1003].includes(err.code)) toast(err.message);
@@ -125,8 +145,12 @@ export function DWrite() {
     <div className="dsk-page">
       <div className="dsk-back" onClick={onBack}>‹ 返回信箱</div>
       <div className="dsk-head">
-        <div className="dsk-title">{replyTo ? '回一封信' : '写一封信'}</div>
-        <div className="dsk-sub">{replyTo ? `回复 ${replyTo.senderNickname} 的「${replyTo.title}」` : '字数不是门槛，是一种慢下来的邀请'}</div>
+        <div className="dsk-title">{replyTo ? '回一封信' : board ? '写一封匿名信' : '写一封信'}</div>
+        <div className="dsk-sub">
+          {replyTo ? `回复 ${replyTo.senderNickname} 的「${replyTo.title}」`
+            : board ? '寄往匿名信区 —— 所有人可读、可回应，没有人知道是你'
+            : '字数不是门槛，是一种慢下来的邀请'}
+        </div>
       </div>
       <div className="dsk-write">
         <div className="card dsk-write-paper">
@@ -134,22 +158,40 @@ export function DWrite() {
             <span className="dsk-recipient-label">致</span>
             {replyTo ? (
               <span className="dsk-recipient active">{toName}</span>
-            ) : recipients.length === 0 ? (
-              <span className="dsk-recipient" style={{ opacity: 0.6 }}>{toName || '暂无通信对象，可先存草稿'}</span>
             ) : (
-              recipients.map((r) => (
-                <span key={r.uid}
-                  className={'dsk-recipient' + (toUid === r.uid ? ' active' : '')}
-                  onClick={() => pick(r)}>{r.name}</span>
-              ))
+              <>
+                {toUid && !board && !recipients.some((r) => r.uid === toUid) && (
+                  <span className="dsk-recipient active">{toName || '收信人'}</span>
+                )}
+                {recipients.map((r) => (
+                  <span key={r.uid}
+                    className={'dsk-recipient' + (toUid === r.uid ? ' active' : '')}
+                    onClick={() => pick(r)}>{r.name}</span>
+                ))}
+                <span className={'dsk-recipient is-board' + (board ? ' active' : '')} onClick={pickBoard}>
+                  🎭 匿名信区
+                </span>
+              </>
+            )}
+            {!replyTo && !board && toUid && (
+              <label className={'anon-toggle' + (isAnon ? ' on' : '')}>
+                <input type="checkbox" checked={isAnon} onChange={(e) => setIsAnon(e.target.checked)} />
+                匿名寄出
+              </label>
             )}
           </div>
+          {board && <div className="dsk-board-note">这封信会出现在所有人的「匿名信区」，署名固定为「匿名笔友」。</div>}
+          {isAnon && !board && <div className="dsk-board-note">对方只会看到「匿名笔友」，不会知道这封信来自你。</div>}
           <input className="dsk-write-title" placeholder="标题（可不填，≤30字）" maxLength={30} value={title} onChange={(e) => setTitle(e.target.value)} />
-          <textarea className="dsk-write-body" placeholder={'亲爱的朋友：\n\n见字如面……'} value={body} onChange={(e) => setBody(e.target.value)} />
+          <textarea className="dsk-write-body"
+            placeholder={board ? '把想说又不便署名的话，写在这里……' : '亲爱的朋友：\n\n见字如面……'}
+            value={body} onChange={(e) => setBody(e.target.value)} />
           <div className="dsk-write-foot">
-            <span className={'dsk-wc' + (wc >= required ? ' ok' : '')}>已写 <b>{wc}</b> / {required} 字{replyToId ? '（回信）' : isFirst ? '（首封）' : ''}</span>
+            <span className={'dsk-wc' + (wc >= required ? ' ok' : '')}>
+              已写 <b>{wc}</b> / {required} 字{board ? '（匿名信）' : replyToId ? '（回信）' : first ? '（首封）' : ''}
+            </span>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>
+              {!board && <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>}
               <div className={'btn btn-primary' + (canSend && !sending ? '' : ' btn-disabled')} onClick={send}>{sending ? '寄出中…' : '封存寄出'}</div>
             </div>
           </div>
@@ -173,7 +215,7 @@ export function DWrite() {
           <div className="card dsk-card">
             <div className="dsk-ai-title">☾ 写信的约定</div>
             <div className="dsk-ai-sub">
-              陌生人的首封信至少 150 字，回信至少 100 字。<br />
+              陌生人的首封信至少 150 字，回信至少 100 字，匿名信至少 30 字。<br />
               没有已读回执，没有催促——对方会在 TA 方便的时候读到。
             </div>
           </div>

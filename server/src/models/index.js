@@ -7,11 +7,13 @@ import { MoodComment } from './MoodComment.js';
 import { Match } from './Match.js';
 import { TokenBlacklist } from './TokenBlacklist.js';
 import { AiUsage } from './AiUsage.js';
+import { AnonLetter } from './AnonLetter.js';
+import { AnonComment } from './AnonComment.js';
 
-export { User, Letter, Draft, Mood, MoodComment, Match, TokenBlacklist, AiUsage };
+export { User, Letter, Draft, Mood, MoodComment, Match, TokenBlacklist, AiUsage, AnonLetter, AnonComment };
 export * from './constants.js';
 
-export const ALL_MODELS = [User, Letter, Draft, Mood, MoodComment, Match, TokenBlacklist, AiUsage];
+export const ALL_MODELS = [User, Letter, Draft, Mood, MoodComment, Match, TokenBlacklist, AiUsage, AnonLetter, AnonComment];
 
 /**
  * 让库中索引与 Schema 定义完全一致（创建缺失、删除多余）——

@@ -1957,3 +1957,27 @@ body {
 .glass .quick-tile.qt-2 { --tile-color: var(--tile-2); }
 .glass .quick-tile.qt-3 { --tile-color: var(--tile-3); }
 .glass .quick-tile.qt-4 { --tile-color: var(--tile-4); }
+
+/* 匿名写信（🎭）：收件栏匿名开关 + 提示条 + 匿名信卡/阅读面板 */
+.anon-toggle {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto;
+  font-size: 12.5px; color: var(--color-ink-secondary); cursor: pointer;
+  padding: 4px 11px; border-radius: 999px;
+  border: 1px dashed color-mix(in oklab, var(--color-ink) 25%, transparent);
+  user-select: none; white-space: nowrap;
+}
+.anon-toggle input { accent-color: var(--color-accent); margin: 0; cursor: pointer; }
+.anon-toggle.on {
+  color: var(--color-accent);
+  border-style: solid; border-color: color-mix(in oklab, var(--color-accent) 45%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 12%, transparent);
+}
+.anon-note {
+  padding: 7px 16px; font-size: 12px; color: var(--color-ink-secondary);
+  background: color-mix(in oklab, var(--color-accent) 8%, var(--color-bg));
+  border-bottom: 1px solid var(--hairline); font-family: var(--font-serif);
+}
+.anon-card-title { font-weight: 600; margin-top: 8px; font-size: 15px; }
+.anon-read-title { font-family: var(--font-serif); font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.anon-read-body { white-space: pre-wrap; line-height: 1.9; font-family: var(--font-serif); }
+.anon-read-meta { margin-top: 10px; font-size: 12px; color: var(--color-ink-secondary); }
