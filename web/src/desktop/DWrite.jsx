@@ -9,8 +9,6 @@ import { lettersApi, draftsApi, aiApi, anonApi, useResource, ApiError } from '..
 import { useUI } from '../store/ui.jsx';
 import { loadWriteDraft, clearWriteDraft, useWriteDraftAutosave } from '../store/writeDraft.js';
 
-const BOARD = '__board'; // 「匿名信区」哨兵收件人
-
 /* 收件箱 + 已发出 → 去重的通信对象（皆为非首封对象） */
 function buildRecipients(inbox, sent) {
   const map = new Map();
@@ -33,9 +31,9 @@ export function DWrite() {
   const recipients = useMemo(() => buildRecipients(inbox.data, sent.data), [inbox.data, sent.data]);
 
   const replyToId = replyTo?._id || null;
+  const [boardSel, setBoardSel] = useState(params.board === true); // 寄往匿名信区（可再点取消）
   const [toUid, setToUid] = useState(
-    params.board ? BOARD
-      : replyTo ? String(replyTo.from_uid || '')
+    replyTo ? String(replyTo.from_uid || '')
       : draft?.to_uid ? String(draft.to_uid)
       : params.targetUid || (saved && saved.targetUid) || ''
   );
@@ -61,20 +59,21 @@ export function DWrite() {
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
-  const board = toUid === BOARD;
+  const board = boardSel;
   const required = board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : first ? FIRST_MIN : REPLY_MIN;
   const wc = countWords(body);
-  const canSend = (replyToId || toUid) && wc >= required;
+  const canSend = board ? wc >= required : (replyToId || toUid) && wc >= required;
 
   useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, draftId, draftTitle: title, draftBody: body });
 
-  function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(false); }
-  function pickBoard() { setToUid(BOARD); setToName('匿名信区'); setIsAnon(false); }
+  function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(false); setBoardSel(false); }
+  function pickExt() { setBoardSel(false); } // 点回带入的收件人（推荐/主页进入的对象）
+  function pickBoard() { setBoardSel((b) => !b); setIsAnon(false); } // 再点一次取消
 
   async function aiContinue() {
     setAiBusy(true); setSugs([]);
     try {
-      const target = toUid && toUid !== BOARD ? { targetUid: toUid } : {};
+      const target = toUid && !board ? { targetUid: toUid } : {};
       const { suggestions } = await aiApi.getWritingInspiration({ draft: body, ...target });
       setSugs(suggestions || []);
     } catch {
@@ -104,7 +103,7 @@ export function DWrite() {
     try {
       const res = await draftsApi.saveDraft({
         ...(draftId ? { id: draftId } : {}),
-        ...(toUid && !board ? { targetUid: toUid } : {}),
+        ...(toUid ? { targetUid: toUid } : {}),
         title, content: body, isFirst: first,
       });
       if (res?._id) setDraftId(res._id);
@@ -160,16 +159,17 @@ export function DWrite() {
               <span className="dsk-recipient active">{toName}</span>
             ) : (
               <>
-                {toUid && !board && !recipients.some((r) => r.uid === toUid) && (
-                  <span className="dsk-recipient active">{toName || '收信人'}</span>
+                {toUid && !recipients.some((r) => r.uid === toUid) && (
+                  <span className={'dsk-recipient' + (!board ? ' active' : '')} onClick={pickExt}>{toName || '收信人'}</span>
                 )}
                 {recipients.map((r) => (
                   <span key={r.uid}
-                    className={'dsk-recipient' + (toUid === r.uid ? ' active' : '')}
+                    className={'dsk-recipient' + (!board && toUid === r.uid ? ' active' : '')}
                     onClick={() => pick(r)}>{r.name}</span>
                 ))}
-                <span className={'dsk-recipient is-board' + (board ? ' active' : '')} onClick={pickBoard}>
-                  🎭 匿名信区
+                <span className={'dsk-recipient is-board' + (board ? ' active' : '')} onClick={pickBoard}
+                  title={board ? '再点一次取消，改寄给某个人' : '寄到所有人可见的匿名信区'}>
+                  🎭 匿名信区{board ? ' ✕' : ''}
                 </span>
               </>
             )}
