@@ -71,6 +71,7 @@ router.post('/', async (req, res, next) => {
       word_count: wordCount,
       status: 'sent',
       is_first: isFirst,
+      is_anonymous: req.body?.isAnonymous === true, // 匿名寄出：收件人不见寄件人身份
       ...(moderation && { moderation }),
     });
     await afterSent(req.uid, toUid);
@@ -94,8 +95,10 @@ router.get('/inbox', async (req, res, next) => {
       ok(
         letters.map((l) => ({
           _id: l._id,
-          from_uid: l.from_uid?._id,
-          senderNickname: l.from_uid?.nickname || '',
+          // 匿名信：收件人视角隐去寄件人（不下发 from_uid，昵称显示「匿名笔友」）
+          from_uid: l.is_anonymous ? null : l.from_uid?._id,
+          senderNickname: l.is_anonymous ? '匿名笔友' : l.from_uid?.nickname || '',
+          isAnonymous: !!l.is_anonymous,
           title: l.title,
           content: l.content,
           word_count: l.word_count,
@@ -154,10 +157,11 @@ router.get('/:id', async (req, res, next) => {
       letter.read_at = new Date();
       await letter.save();
     }
+    const maskSender = letter.is_anonymous && !isSender; // 收件人视角隐去寄件人
     res.json(
       ok({
         _id: letter._id,
-        from_uid: letter.from_uid._id,
+        from_uid: maskSender ? null : letter.from_uid._id,
         to_uid: letter.to_uid,
         parent_id: letter.parent_id,
         title: letter.title,
@@ -165,9 +169,10 @@ router.get('/:id', async (req, res, next) => {
         word_count: letter.word_count,
         status: letter.status,
         is_first: letter.is_first,
+        isAnonymous: !!letter.is_anonymous,
         created_at: letter.created_at,
         read_at: letter.read_at,
-        senderNickname: letter.from_uid.nickname || '',
+        senderNickname: maskSender ? '匿名笔友' : letter.from_uid.nickname || '',
       })
     );
   } catch (err) {
@@ -200,6 +205,8 @@ router.post('/:id/reply', async (req, res, next) => {
       word_count: wordCount,
       status: 'sent',
       is_first: false,
+      // 匿名信的原寄件人在线程内继续回信时，保持匿名（否则一回信就暴露身份）
+      is_anonymous: !!(parent.is_anonymous && isSender),
       ...(moderation && { moderation }),
     });
     await afterSent(req.uid, toUid);

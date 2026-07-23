@@ -8,8 +8,9 @@ import { Avatar, MoodBadge } from '../components/primitives.jsx';
 import { EnvelopeCard } from '../components/cards.jsx';
 import { MoodWidget } from '../components/MoodWidget.jsx';
 import { SkeletonList } from '../components/states.jsx';
-import { lettersApi, matchesApi, moodsApi, useResource, ApiError } from '../api/index.js';
-import { greeting, formatCnDate } from '../utils/date.js';
+import { AnonSheet } from '../components/AnonSheet.jsx';
+import { lettersApi, matchesApi, moodsApi, anonApi, useResource, ApiError } from '../api/index.js';
+import { greeting, formatCnDate, relativeTime } from '../utils/date.js';
 import { useMoods } from '../store/moods.jsx';
 import { useUser } from '../store/user.jsx';
 import { useUI } from '../store/ui.jsx';
@@ -31,6 +32,8 @@ export function HomeScreen() {
   const matches = useResource(() => matchesApi.getDailyRecommend(), []);
   const memory = useResource(() => moodsApi.getMemoryToday(), []);
   const inbox = useResource(() => lettersApi.getInbox(0), []);
+  const anon = useResource(() => anonApi.getAnonLetters(0), []);
+  const [anonOpen, setAnonOpen] = useState(null); // 打开阅读的匿名信
 
   const top = (matches.data || [])[0];
   const mem = memory.data; // 可能为 null（去年无记录）
@@ -181,7 +184,42 @@ export function HomeScreen() {
             ))
           )}
         </div>
+
+        {/* 匿名信区（树洞）：发信匿名、回应实名、全员可看 */}
+        <div className="section" style={{ marginBottom: 24 }}>
+          <div className="section-header">
+            <span className="section-title ribbon"><span className="ribbon-banner"><span className="rb-mark">🎭</span>匿名信区</span></span>
+            <span className="section-more" onClick={() => navigate('/write', { state: { board: true } })}>写一封 ›</span>
+          </div>
+          {anon.loading ? (
+            <SkeletonList rows={2} />
+          ) : (anon.data || []).length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', color: 'var(--color-ink-secondary)', fontFamily: 'var(--font-serif)', padding: '22px 16px' }}>
+              还没有匿名信，写下第一封没有署名的心里话吧
+            </div>
+          ) : (
+            (anon.data || []).slice(0, 3).map((post) => (
+              <div key={post._id} className="card feed-card" onClick={() => setAnonOpen(post)}>
+                <div className="feed-card-header">
+                  <div>
+                    <span className="feed-author-name">🎭 匿名笔友{post.isMine ? '（我）' : ''}</span>
+                    <span className="feed-date">{relativeTime(post.created_at)}</span>
+                  </div>
+                </div>
+                {post.title && <div className="anon-card-title">{post.title}</div>}
+                <div className="feed-diary text-clamp-3">{post.content}</div>
+                <div className="feed-footer">
+                  <span className="comment-btn">💬 {post.commentCount} 回应</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
+      {anonOpen && (
+        <AnonSheet post={anonOpen} onClose={() => setAnonOpen(null)}
+          onPosted={(count) => anon.setData((arr) => (arr || []).map((x) => (x._id === anonOpen._id ? { ...x, commentCount: count } : x)))} />
+      )}
     </div>
   );
 }

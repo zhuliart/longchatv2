@@ -15,6 +15,8 @@ const letterSchema = new mongoose.Schema(
     word_count: { type: Number, required: true, min: 0 }, // 服务端 countWords 重算
     status: { type: String, enum: LETTER_STATUSES, default: 'sent' },
     is_first: { type: Boolean, default: false },
+    // 匿名寄出：收件人视角隐去寄件人身份（列表/详情显示「匿名笔友」，不下发 from_uid）
+    is_anonymous: { type: Boolean, default: false },
     read_at: { type: Date, default: null },
     moderation: { type: String, enum: MODERATION_STATES, default: undefined },
     // 不活跃检查（T4.3 inactivityCheck，同 v0.2 №28）：7/14/30 天未获回应的标记

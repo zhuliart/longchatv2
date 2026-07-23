@@ -9,7 +9,7 @@ import { StatusBar, NavBar } from '../components/chrome.jsx';
 import { countWords } from '../utils/countWords.js';
 import { FIRST_MIN, REPLY_MIN } from '../constants/index.js';
 import { INSPIRATION } from '../constants/index.js';
-import { lettersApi, draftsApi, aiApi, ApiError } from '../api/index.js';
+import { lettersApi, draftsApi, aiApi, anonApi, ApiError } from '../api/index.js';
 import { useUI } from '../store/ui.jsx';
 import { loadWriteDraft, clearWriteDraft, useWriteDraftAutosave } from '../store/writeDraft.js';
 
@@ -20,8 +20,10 @@ export function WriteScreen() {
   const saved = state ? null : loadWriteDraft(); // 直接进入且无参数时恢复自动暂存
   const params = state || saved || {};
   const replyToId = params.replyToId || null;
+  const board = params.board === true; // 寄往匿名信区
   const isFirst = !replyToId && params.isFirst !== false;
-  const required = replyToId ? REPLY_MIN : isFirst ? FIRST_MIN : REPLY_MIN;
+  const required = board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : isFirst ? FIRST_MIN : REPLY_MIN;
+  const [isAnon, setIsAnon] = useState(false); // 匿名寄给指定收件人
   const [title, setTitle] = useState(params.draftTitle || '');
   const [content, setContent] = useState(params.draftBody || '');
   const [draftId, setDraftId] = useState(params.draftId || null);
@@ -104,14 +106,15 @@ export function WriteScreen() {
   async function send() {
     if (sending) return;
     if (!canSend) { toast(`还需 ${required - wc} 字`); return; }
-    if (!replyToId && !targetUid) { toast('先选择收信人'); return; }
+    if (!board && !replyToId && !targetUid) { toast('先选择收信人'); return; }
     setSending(true);
     try {
-      if (replyToId) await lettersApi.replyLetter(replyToId, { title, content });
-      else await lettersApi.sendLetter({ targetUid, title, content });
+      if (board) await anonApi.sendAnonLetter({ title, content });
+      else if (replyToId) await lettersApi.replyLetter(replyToId, { title, content });
+      else await lettersApi.sendLetter({ targetUid, title, content, isAnonymous: isAnon });
       clearWriteDraft();
-      toast('信件已寄出 ✦');
-      navigate('/inbox');
+      toast(board ? '已寄往匿名信区 ✦' : isAnon ? '信已匿名寄出 ✦' : '信件已寄出 ✦');
+      navigate(board ? '/' : '/inbox');
     } catch (err) {
       // 1002 字数 / 1001 违规 / 1003 拒收：就地提示不关页
       if (err instanceof ApiError && [1001, 1002, 1003].includes(err.code)) toast(err.message);
@@ -124,17 +127,26 @@ export function WriteScreen() {
   return (
     <div className="page is-overlay">
       <StatusBar dark />
-      <NavBar title={replyToId ? '回信' : '写信'} onBack={back} />
+      <NavBar title={replyToId ? '回信' : board ? '匿名信' : '写信'} onBack={back} />
       <div className="recipient-bar">
         <span className="recipient-label">致：</span>
-        <span className="recipient-name">{params.targetNickname || '请选择收信人'}</span>
+        <span className="recipient-name">{board ? '🎭 匿名信区' : params.targetNickname || '请选择收信人'}</span>
+        {!board && !replyToId && targetUid && (
+          <label className={'anon-toggle' + (isAnon ? ' on' : '')}>
+            <input type="checkbox" checked={isAnon} onChange={(e) => setIsAnon(e.target.checked)} />
+            匿名
+          </label>
+        )}
       </div>
+      {(board || isAnon) && (
+        <div className="anon-note">{board ? '所有人可读、可回应，署名固定为「匿名笔友」' : '对方只会看到「匿名笔友」，不会知道是你'}</div>
+      )}
       <div className="page-scroll">
         <div className="letter-paper ruled">
           <input className="title-input" placeholder="信件标题（选填）" maxLength={30} value={title} onChange={(e) => setTitle(e.target.value)} />
           <div className="paper-divider" />
           <textarea className="content-textarea"
-            placeholder={isFirst ? '写下你想对TA说的话吧（至少150字）' : '写下你的回信（至少100字）'}
+            placeholder={board ? '把想说又不便署名的话，写在这里…（至少30字）' : isFirst ? '写下你想对TA说的话吧（至少150字）' : '写下你的回信（至少100字）'}
             value={content} onChange={(e) => setContent(e.target.value)} />
           <div className="counter-bar">
             <span className={'counter-text ' + (canSend ? 'counter-ok' : 'counter-warn')}>{wc} / {required} 字</span>
@@ -149,7 +161,7 @@ export function WriteScreen() {
           <span className="inspire-label">灵感</span>
         </button>
         <div className="send-right">
-          <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} style={{ padding: '11px 16px' }} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>
+          {!board && <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} style={{ padding: '11px 16px' }} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>}
           <div className={'btn btn-primary' + (!canSend || sending ? ' btn-disabled' : '')} onClick={send}>{sending ? '寄出中...' : '封存寄出'}</div>
         </div>
       </div>
