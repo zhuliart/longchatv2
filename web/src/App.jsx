@@ -26,6 +26,7 @@ import { DetailScreen } from './screens/DetailScreen.jsx';
 import { MatchScreen } from './screens/MatchScreen.jsx';
 import { PeerProfileScreen } from './screens/PeerProfileScreen.jsx';
 import { EditScreen } from './screens/EditScreen.jsx';
+import { AnonScreen } from './screens/AnonScreen.jsx';
 
 import { DesktopShell } from './desktop/DesktopShell.jsx';
 import { DLogin } from './desktop/DLogin.jsx';
@@ -34,6 +35,7 @@ import { DInbox } from './desktop/DInbox.jsx';
 import { DJourney } from './desktop/DJourney.jsx';
 import { DProfile } from './desktop/DProfile.jsx';
 import { DWrite } from './desktop/DWrite.jsx';
+import { DAnon } from './desktop/DAnon.jsx';
 
 /* 守卫：未登录 → /login；未完成引导 → /onboarding（防跳过引导，对应服务端 T2.5） */
 function RequireAuth() {
@@ -107,6 +109,7 @@ function MobileRoutes() {
           <Route path="/match" element={<MatchScreen />} />
           <Route path="/peer/:uid" element={<PeerProfileScreen />} />
           <Route path="/edit" element={<EditScreen />} />
+          <Route path="/anon" element={<AnonScreen />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -132,6 +135,7 @@ function DesktopRoutes() {
           <Route path="/journey" element={<DJourney />} />
           <Route path="/me" element={<DProfile />} />
           <Route path="/write" element={<DWrite />} />
+          <Route path="/anon" element={<DAnon />} />
         </Route>
         <Route path="/letter/:id" element={<LetterRedirect />} />
         {/* 桌面原型未设计匹配/对方主页独立视图 → 回落 */}

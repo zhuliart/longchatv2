@@ -1981,3 +1981,4 @@ body {
 .anon-read-title { font-family: var(--font-serif); font-size: 17px; font-weight: 600; margin-bottom: 8px; }
 .anon-read-body { white-space: pre-wrap; line-height: 1.9; font-family: var(--font-serif); }
 .anon-read-meta { margin-top: 10px; font-size: 12px; color: var(--color-ink-secondary); }
+.anon-page-sub { color: var(--color-ink-secondary); font-size: 12.5px; font-family: var(--font-serif); padding: 2px 2px 12px; }
