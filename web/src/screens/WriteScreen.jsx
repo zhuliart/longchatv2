@@ -130,7 +130,7 @@ export function WriteScreen() {
       <NavBar title={replyToId ? '回信' : board ? '匿名信' : '写信'} onBack={back} />
       <div className="recipient-bar">
         <span className="recipient-label">致：</span>
-        <span className="recipient-name">{board ? '🎭 匿名信区' : params.targetNickname || '请选择收信人'}</span>
+        <span className="recipient-name">{board ? '◐ 匿名信区' : params.targetNickname || '请选择收信人'}</span>
         {!board && !replyToId && targetUid && (
           <label className={'anon-toggle' + (isAnon ? ' on' : '')}>
             <input type="checkbox" checked={isAnon} onChange={(e) => setIsAnon(e.target.checked)} />

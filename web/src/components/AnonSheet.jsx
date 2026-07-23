@@ -33,7 +33,7 @@ export function AnonSheet({ post, onClose, onPosted }) {
       <div className="sheet-mask" onClick={onClose} />
       <div className="sheet">
         <div className="sheet-header">
-          <span className="sheet-title">🎭 匿名笔友{post.isMine ? '（我）' : ''}</span>
+          <span className="sheet-title">◐ 匿名笔友{post.isMine ? '（我）' : ''}</span>
           <span className="sheet-close" onClick={onClose}>✕</span>
         </div>
         <div className="sheet-scroll">

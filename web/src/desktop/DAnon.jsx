@@ -37,7 +37,7 @@ export function DAnonItem({ post, open, onToggle, onPosted }) {
   return (
     <div className="dsk-anon-item">
       <div className="dsk-anon-head">
-        <span className="dsk-anon-mask">🎭</span>
+        <span className="dsk-anon-mask">◐</span>
         <span className="dsk-anon-name">匿名笔友{post.isMine ? '（我）' : ''}</span>
         <span className="dsk-anon-time">{relativeTime(post.created_at)}</span>
       </div>
@@ -106,7 +106,7 @@ export function DAnon() {
     <div className="dsk-page">
       <div className="dsk-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div>
-          <div className="dsk-title">🎭 匿名信区</div>
+          <div className="dsk-title">匿名信区</div>
           <div className="dsk-sub">没有署名的心里话 —— 发信匿名，回应实名，谁都可以读</div>
         </div>
         <div className="btn btn-primary" onClick={goWrite}>✎ 写一封匿名信</div>
@@ -117,7 +117,7 @@ export function DAnon() {
       ) : first.error ? (
         <ErrorState onRetry={first.reload} />
       ) : posts.length === 0 ? (
-        <EmptyState icon="🎭" title="信区还空着"
+        <EmptyState icon="◐" title="信区还空着"
           sub="第一封没有署名的心里话，由你来写吧"
           actionLabel="写一封匿名信" onAction={goWrite} style={{ paddingTop: 70 }} />
       ) : (

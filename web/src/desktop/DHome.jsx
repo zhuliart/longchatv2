@@ -162,7 +162,7 @@ function DAnonBoard() {
   return (
     <div className="card dsk-card">
       <div className="dsk-card-title">
-        <span>🎭 匿名信区</span>
+        <span>匿名信区</span>
         <span className="more" onClick={() => navigate('/anon')}>全部 ›</span>
       </div>
       <div className="dsk-souls-note" style={{ marginBottom: 10 }}>没有署名的心里话 · 谁都可以回应</div>
@@ -172,7 +172,7 @@ function DAnonBoard() {
         <ErrorState onRetry={reload} />
       ) : posts.length === 0 ? (
         <div className="empty-state" style={{ padding: '24px 8px' }}>
-          <span className="empty-icon">🎭</span>
+          <span className="empty-icon">◐</span>
           <span>还没有匿名信</span>
           <span className="empty-sub" style={{ cursor: 'pointer' }} onClick={() => navigate('/write', { state: { board: true } })}>写下第一封没有署名的心里话 ›</span>
         </div>

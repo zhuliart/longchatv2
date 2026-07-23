@@ -169,7 +169,7 @@ export function DWrite() {
                 ))}
                 <span className={'dsk-recipient is-board' + (board ? ' active' : '')} onClick={pickBoard}
                   title={board ? '再点一次取消，改寄给某个人' : '寄到所有人可见的匿名信区'}>
-                  🎭 匿名信区{board ? ' ✕' : ''}
+                  ◐ 匿名信区{board ? ' ✕' : ''}
                 </span>
               </>
             )}

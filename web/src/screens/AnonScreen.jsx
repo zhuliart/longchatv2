@@ -45,7 +45,7 @@ export function AnonScreen() {
   return (
     <div className="page is-overlay">
       <StatusBar dark />
-      <NavBar title="🎭 匿名信区" onBack={() => navigate(-1)} />
+      <NavBar title="匿名信区" onBack={() => navigate(-1)} />
       <div className="page-scroll" style={{ padding: '12px 16px 24px' }}>
         <div className="anon-page-sub">没有署名的心里话 —— 发信匿名，回应实名，谁都可以读</div>
         {first.loading ? (
@@ -53,7 +53,7 @@ export function AnonScreen() {
         ) : first.error ? (
           <ErrorState onRetry={first.reload} />
         ) : posts.length === 0 ? (
-          <EmptyState icon="🎭" title="信区还空着" sub="第一封没有署名的心里话，由你来写吧"
+          <EmptyState icon="◐" title="信区还空着" sub="第一封没有署名的心里话，由你来写吧"
             actionLabel="写一封匿名信" onAction={goWrite} style={{ paddingTop: 60 }} />
         ) : (
           <>
@@ -61,7 +61,7 @@ export function AnonScreen() {
               <div key={post._id} className="card feed-card" onClick={() => setOpen(post)}>
                 <div className="feed-card-header">
                   <div>
-                    <span className="feed-author-name">🎭 匿名笔友{post.isMine ? '（我）' : ''}</span>
+                    <span className="feed-author-name">◐ 匿名笔友{post.isMine ? '（我）' : ''}</span>
                     <span className="feed-date">{relativeTime(post.created_at)}</span>
                   </div>
                 </div>
