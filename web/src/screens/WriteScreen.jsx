@@ -20,14 +20,15 @@ export function WriteScreen() {
   const saved = state ? null : loadWriteDraft(); // 直接进入且无参数时恢复自动暂存
   const params = state || saved || {};
   const replyToId = params.replyToId || null;
-  const board = params.board === true; // 寄往匿名信区
+  // 旧版暂存可能把信区存成哨兵收件人 '__board'——一并识别为信区模式
+  const board = params.board === true || params.targetUid === '__board'; // 寄往匿名信区
   const isFirst = !replyToId && params.isFirst !== false;
   const required = board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : isFirst ? FIRST_MIN : REPLY_MIN;
   const [isAnon, setIsAnon] = useState(false); // 匿名寄给指定收件人
   const [title, setTitle] = useState(params.draftTitle || '');
   const [content, setContent] = useState(params.draftBody || '');
   const [draftId, setDraftId] = useState(params.draftId || null);
-  const [targetUid] = useState(params.targetUid || '');
+  const [targetUid] = useState(params.targetUid === '__board' ? '' : params.targetUid || '');
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [inspireOpen, setInspireOpen] = useState(false);

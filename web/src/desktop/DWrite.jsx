@@ -31,23 +31,27 @@ export function DWrite() {
   const recipients = useMemo(() => buildRecipients(inbox.data, sent.data), [inbox.data, sent.data]);
 
   const replyToId = replyTo?._id || null;
-  const [boardSel, setBoardSel] = useState(params.board === true); // 寄往匿名信区（可再点取消）
+  // 旧版把信区存成哨兵收件人 '__board'——恢复暂存时识别并清洗，避免出现假 chip
+  const savedBoard = !!saved && (saved.board === true || saved.targetUid === '__board');
+  const savedUid = saved && saved.targetUid !== '__board' ? saved.targetUid : '';
+  const savedName = savedBoard ? '' : (saved && saved.targetNickname) || '';
+  const [boardSel, setBoardSel] = useState(params.board === true || savedBoard); // 寄往匿名信区（可再点取消）
   const [toUid, setToUid] = useState(
     replyTo ? String(replyTo.from_uid || '')
       : draft?.to_uid ? String(draft.to_uid)
-      : params.targetUid || (saved && saved.targetUid) || ''
+      : params.targetUid || savedUid || ''
   );
   const [toName, setToName] = useState(
     replyTo ? replyTo.senderNickname
       : draft?.receiverNickname ? draft.receiverNickname
-      : params.targetNickname || (saved && saved.targetNickname) || ''
+      : params.targetNickname || savedName || ''
   );
   // 是否首封：回信/通信对象=false；推荐/主页带入按 params.isFirst；未知默认 true（宁高勿低，服务端复校）
   const [first, setFirst] = useState(
     replyTo ? false
       : draft ? (draft.required || FIRST_MIN) >= FIRST_MIN
       : params.targetUid ? params.isFirst !== false
-      : saved?.targetUid ? saved.isFirst !== false
+      : savedUid ? saved.isFirst !== false
       : true
   );
   const [isAnon, setIsAnon] = useState(false); // 匿名寄给指定收件人
@@ -64,7 +68,7 @@ export function DWrite() {
   const wc = countWords(body);
   const canSend = board ? wc >= required : (replyToId || toUid) && wc >= required;
 
-  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, draftId, draftTitle: title, draftBody: body });
+  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, board, draftId, draftTitle: title, draftBody: body });
 
   function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(false); setBoardSel(false); }
   function pickExt() { setBoardSel(false); } // 点回带入的收件人（推荐/主页进入的对象）
