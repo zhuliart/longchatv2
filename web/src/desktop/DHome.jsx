@@ -1,5 +1,6 @@
-/* 桌面此刻（T5.5 / T6.2 #1#3#6#7、T6.3 记心情·跳过）：双栏 1fr+392px —— 左=今日心情卡+去年的今天；
-   右=最近的信；下方=今日灵魂推荐。数据：GET /users/me、/moods/memory-today、/letters/inbox、/matches/daily。 */
+/* 桌面此刻（T5.5 / T6.2 #1#3#6#7、T6.3 记心情·跳过）：双栏 1fr+392px ——
+   左（主栏）=今日心情 + 今日灵魂推荐；右（侧栏）=去年的今天 + 最近的信。
+   数据：GET /users/me、/moods/memory-today、/letters/inbox、/matches/daily。 */
 import { useNavigate } from 'react-router-dom';
 import { MoodFace, MoodBadge, IntensityDots } from '../components/primitives.jsx';
 import { EnvelopeCard, SoulCard } from '../components/cards.jsx';
@@ -51,6 +52,7 @@ export function DHome() {
         <div className="dsk-sub">今天想写点什么，或者只是记录一种心情？</div>
       </div>
       <div className="dsk-home">
+        {/* 左主栏：今日心情 + 今日灵魂 */}
         <div className="dsk-col">
           <div className="card dsk-card">
             <div className="dsk-card-title">
@@ -73,6 +75,39 @@ export function DHome() {
             )}
           </div>
 
+          <div className="card dsk-card">
+            <div className="dsk-card-title">
+              <span>今日灵魂</span>
+              <span className="dsk-souls-note">每日更新 · 真诚相遇</span>
+            </div>
+            {matches.loading ? (
+              <SkeletonList rows={2} />
+            ) : matches.error ? (
+              <ErrorState onRetry={matches.reload} />
+            ) : souls.length === 0 ? (
+              <div className="empty-state" style={{ padding: '32px 8px' }}>
+                <span className="empty-icon">☾</span>
+                <span>今天的推荐已看完</span>
+                <span className="empty-sub">明天还会有新的灵魂与你相遇</span>
+              </div>
+            ) : (
+              <div className="dsk-souls">
+                {souls.map((m) => (
+                  <div key={m._id} className="dsk-soul-item">
+                    <SoulCard item={m} onClick={() => writeTo(m)} />
+                    <div className="dsk-soul-actions">
+                      <div className="btn btn-ghost" onClick={() => skip(m)}>跳过</div>
+                      <div className="btn btn-primary" onClick={() => writeTo(m)}>写信给TA</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 右侧栏：去年的今天 + 最近的信 */}
+        <div className="dsk-col">
           {mem && mem.type === 'mood' && (
             <div className="card dsk-card">
               <div className="dsk-card-title">
@@ -83,9 +118,7 @@ export function DHome() {
               <div className="dsk-memory-date">{mem.date} · <MoodBadge emotion={mem.emotion} feeling={mem.feeling} /></div>
             </div>
           )}
-        </div>
 
-        <div className="dsk-col">
           <div className="card dsk-card">
             <div className="dsk-card-title">
               <span>最近的信</span>
@@ -106,37 +139,6 @@ export function DHome() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* 今日灵魂推荐 */}
-      <div className="card dsk-card dsk-souls-card">
-        <div className="dsk-card-title">
-          <span>今日灵魂</span>
-          <span className="dsk-souls-note">每日更新 · 真诚相遇</span>
-        </div>
-        {matches.loading ? (
-          <SkeletonList rows={2} />
-        ) : matches.error ? (
-          <ErrorState onRetry={matches.reload} />
-        ) : souls.length === 0 ? (
-          <div className="empty-state" style={{ padding: '32px 8px' }}>
-            <span className="empty-icon">☾</span>
-            <span>今天的推荐已看完</span>
-            <span className="empty-sub">明天还会有新的灵魂与你相遇</span>
-          </div>
-        ) : (
-          <div className="dsk-souls">
-            {souls.map((m) => (
-              <div key={m._id} className="dsk-soul-item">
-                <SoulCard item={m} onClick={() => writeTo(m)} />
-                <div className="dsk-soul-actions">
-                  <div className="btn btn-ghost" onClick={() => skip(m)}>跳过</div>
-                  <div className="btn btn-primary" onClick={() => writeTo(m)}>写信给TA</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

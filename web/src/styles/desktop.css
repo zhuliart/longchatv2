@@ -276,7 +276,6 @@ body { margin: 0; background: var(--color-bg); }
 }
 
 /* 桌面首页「今日灵魂」推荐区（M6 桌面原缺，后补） */
-.dsk-souls-card { margin-top: 18px; }
 .dsk-souls-note { font-size: 12.5px; color: var(--color-ink-secondary); font-family: var(--font-serif); }
 .dsk-souls {
   display: grid;
