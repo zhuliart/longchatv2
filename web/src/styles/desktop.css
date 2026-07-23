@@ -301,3 +301,11 @@ body { margin: 0; background: var(--color-bg); }
 .dsk-anon-body { margin-top: 6px; font-size: 13.5px; line-height: 1.8; color: var(--color-ink); font-family: var(--font-serif); white-space: pre-wrap; }
 .dsk-anon-foot { margin-top: 8px; font-size: 12.5px; color: var(--color-ink-secondary); cursor: pointer; }
 .dsk-anon-foot:hover { color: var(--color-accent); }
+
+/* 匿名信区独立页（/anon） */
+.dsk-anon-grid { column-count: 2; column-gap: 18px; }
+.dsk-anon-card { break-inside: avoid; margin-bottom: 18px; }
+.dsk-anon-card .dsk-anon-item { border-top: none; padding: 4px 2px; }
+.dsk-anon-more { text-align: center; padding: 8px 0 24px; }
+.dsk-anon-more .dim { color: var(--color-ink-secondary); font-size: 12.5px; font-family: var(--font-serif); }
+@media (max-width: 960px) { .dsk-anon-grid { column-count: 1; } }

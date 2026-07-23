@@ -189,7 +189,7 @@ export function HomeScreen() {
         <div className="section" style={{ marginBottom: 24 }}>
           <div className="section-header">
             <span className="section-title ribbon"><span className="ribbon-banner"><span className="rb-mark">🎭</span>匿名信区</span></span>
-            <span className="section-more" onClick={() => navigate('/write', { state: { board: true } })}>写一封 ›</span>
+            <span className="section-more" onClick={() => navigate('/anon')}>全部 ›</span>
           </div>
           {anon.loading ? (
             <SkeletonList rows={2} />
