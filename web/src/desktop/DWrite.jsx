@@ -72,6 +72,7 @@ export function DWrite() {
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [sentOk, setSentOk] = useState(false); // 寄出成功后关闭自动暂存（防清理后又被回存）
+  const [savedClean, setSavedClean] = useState(false); // 存草稿后暂存已清；再编辑才恢复自动暂存
   // 从自动暂存恢复的内容：给「清空重写」入口
   const [showRestored, setShowRestored] = useState(!!saved && !!(saved.draftBody || saved.draftTitle));
 
@@ -80,7 +81,7 @@ export function DWrite() {
   const wc = countWords(body);
   const canSend = board ? wc >= required : (replyToId || toUid) && wc >= required;
 
-  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, board, draftId, draftTitle: title, draftBody: body }, !sentOk);
+  useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, board, draftId, draftTitle: title, draftBody: body }, !sentOk && !savedClean);
 
   /* 清空重写：白纸开始（清字段 + 清暂存） */
   function startBlank() {
@@ -89,7 +90,7 @@ export function DWrite() {
     setShowRestored(false);
   }
 
-  function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(r.first !== false); setBoardSel(false); }
+  function pick(r) { setToUid(r.uid); setToName(r.name); setFirst(r.first !== false); setBoardSel(false); setSavedClean(false); }
   function pickExt() { setBoardSel(false); } // 点回带入的收件人（推荐/主页进入的对象）
   function pickBoard() { setBoardSel((b) => !b); setIsAnon(false); } // 再点一次取消
 
@@ -130,7 +131,10 @@ export function DWrite() {
         title, content: body, isFirst: first,
       });
       if (res?._id) setDraftId(res._id);
-      toast('草稿已保存 ✦');
+      // 草稿已安放进草稿箱：清本地暂存 → 下次「写一封信」是新的一封（再编辑则恢复防丢保护）
+      setSavedClean(true);
+      clearWriteDraft();
+      toast('草稿已保存 ✦ 可在信箱·草稿箱继续');
     } catch {
       /* 异常已由 client 层 toast */
     } finally {
@@ -217,10 +221,10 @@ export function DWrite() {
           )}
           {board && <div className="dsk-board-note">这封信会出现在所有人的「匿名信区」，署名固定为「匿名笔友」。</div>}
           {isAnon && !board && <div className="dsk-board-note">对方只会看到「匿名笔友」，不会知道这封信来自你。</div>}
-          <input className="dsk-write-title" placeholder="标题（可不填，≤30字）" maxLength={30} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className="dsk-write-title" placeholder="标题（可不填，≤30字）" maxLength={30} value={title} onChange={(e) => { setTitle(e.target.value); setSavedClean(false); }} />
           <textarea className="dsk-write-body"
             placeholder={board ? '把想说又不便署名的话，写在这里……' : '亲爱的朋友：\n\n见字如面……'}
-            value={body} onChange={(e) => setBody(e.target.value)} />
+            value={body} onChange={(e) => { setBody(e.target.value); setSavedClean(false); }} />
           <div className="dsk-write-foot">
             <span className={'dsk-wc' + (wc >= required ? ' ok' : '')}>
               已写 <b>{wc}</b> / {required} 字{board ? '（匿名信）' : replyToId ? '（回信）' : first ? '（首封）' : ''}

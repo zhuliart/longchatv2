@@ -39,6 +39,7 @@ export function WriteScreen() {
   const [aiErr, setAiErr] = useState('');
 
   const [sentOk, setSentOk] = useState(false); // 寄出成功后关闭自动暂存（防清理后又被回存）
+  const [savedClean, setSavedClean] = useState(false); // 存草稿后暂存已清；再编辑才恢复自动暂存
   useWriteDraftAutosave({
     targetUid,
     targetNickname: params.targetNickname || '',
@@ -47,7 +48,7 @@ export function WriteScreen() {
     draftId,
     draftTitle: title,
     draftBody: content,
-  }, !sentOk);
+  }, !sentOk && !savedClean);
 
   /* AI 续写：POST /ai/inspiration（服务端取最近信件拼 prompt → 3 条候选） */
   async function aiContinue() {
@@ -98,7 +99,9 @@ export function WriteScreen() {
         isFirst,
       });
       if (res?._id) setDraftId(res._id);
-      toast('草稿已保存');
+      setSavedClean(true);
+      clearWriteDraft(); // 草稿已入草稿箱：下次写信是新的一封
+      toast('草稿已保存 ✦ 可在草稿箱继续');
     } catch {
       /* 网络异常已由 client 层 toast */
     } finally {
@@ -147,11 +150,11 @@ export function WriteScreen() {
       )}
       <div className="page-scroll">
         <div className="letter-paper ruled">
-          <input className="title-input" placeholder="信件标题（选填）" maxLength={30} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className="title-input" placeholder="信件标题（选填）" maxLength={30} value={title} onChange={(e) => { setTitle(e.target.value); setSavedClean(false); }} />
           <div className="paper-divider" />
           <textarea className="content-textarea"
             placeholder={board ? '把想说又不便署名的话，写在这里…（至少30字）' : isFirst ? '写下你想对TA说的话吧（至少150字）' : '写下你的回信（至少100字）'}
-            value={content} onChange={(e) => setContent(e.target.value)} />
+            value={content} onChange={(e) => { setContent(e.target.value); setSavedClean(false); }} />
           <div className="counter-bar">
             <span className={'counter-text ' + (canSend ? 'counter-ok' : 'counter-warn')}>{wc} / {required} 字</span>
             {!canSend && wc > 0 && <span className="counter-text counter-warn">还需 {required - wc} 字</span>}
