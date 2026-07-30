@@ -225,22 +225,24 @@ export function DWrite() {
 
         <div className="dsk-write-side">
           <div className="card dsk-card">
-            <div className="dsk-ai-title">❋ 灵感</div>
-            <div className="dsk-ai-sub">不知道从哪儿落笔？挑一句开始，点击即插入信里。</div>
-            {INSPIRATION.map((g) => (
-              <div className="dsk-inspire-group" key={g.label}>
-                <div className="dsk-inspire-label">{g.label}</div>
-                {g.lines.map((ln) => (
-                  <div key={ln} className="dsk-ai-sug" onClick={() => insert(ln)}>{ln}</div>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="card dsk-card">
             <div className="dsk-ai-title">☾ 写信的约定</div>
             <div className="dsk-ai-sub">
               陌生人的首封信至少 150 字，回信至少 100 字，匿名信至少 30 字。<br />
               没有已读回执，没有催促——对方会在 TA 方便的时候读到。
+            </div>
+          </div>
+          <div className="card dsk-card">
+            <div className="dsk-ai-title">❋ 灵感</div>
+            <div className="dsk-ai-sub">不知道从哪儿落笔？挑一句开始，点击即插入信里。</div>
+            <div className="dsk-inspire-scroll">
+              {INSPIRATION.map((g) => (
+                <div className="dsk-inspire-group" key={g.label}>
+                  <div className="dsk-inspire-label">{g.label}</div>
+                  {g.lines.map((ln) => (
+                    <div key={ln} className="dsk-ai-sug" onClick={() => insert(ln)}>{ln}</div>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
         </div>
