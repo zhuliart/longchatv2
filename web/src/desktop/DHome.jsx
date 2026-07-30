@@ -6,7 +6,6 @@ import { MoodFace, MoodBadge, IntensityDots } from '../components/primitives.jsx
 import { EnvelopeCard, SoulCard } from '../components/cards.jsx';
 import { MoodWidget } from '../components/MoodWidget.jsx';
 import { SkeletonList, ErrorState } from '../components/states.jsx';
-import { useState } from 'react';
 import { lettersApi, moodsApi, matchesApi, anonApi, useResource, ApiError } from '../api/index.js';
 import { greeting } from '../utils/date.js';
 import { DAnonItem } from './DAnon.jsx';

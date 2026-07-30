@@ -9,7 +9,7 @@ import { StatusBar, NavBar } from '../components/chrome.jsx';
 import { countWords } from '../utils/countWords.js';
 import { FIRST_MIN, REPLY_MIN } from '../constants/index.js';
 import { INSPIRATION } from '../constants/index.js';
-import { lettersApi, draftsApi, aiApi, anonApi, ApiError } from '../api/index.js';
+import { lettersApi, draftsApi, anonApi, ApiError } from '../api/index.js';
 import { useUI } from '../store/ui.jsx';
 import { loadWriteDraft, clearWriteDraft, useWriteDraftAutosave } from '../store/writeDraft.js';
 
@@ -33,11 +33,6 @@ export function WriteScreen() {
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [inspireOpen, setInspireOpen] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiKind, setAiKind] = useState(null);
-  const [aiResults, setAiResults] = useState([]);
-  const [aiPolishText, setAiPolishText] = useState('');
-  const [aiErr, setAiErr] = useState('');
 
   const [sentOk, setSentOk] = useState(false); // 寄出成功后关闭自动暂存（防清理后又被回存）
   const [savedClean, setSavedClean] = useState(false); // 存草稿后暂存已清；再编辑才恢复自动暂存
@@ -50,36 +45,6 @@ export function WriteScreen() {
     draftTitle: title,
     draftBody: content,
   }, !sentOk && !savedClean);
-
-  /* AI 续写：POST /ai/inspiration（服务端取最近信件拼 prompt → 3 条候选） */
-  async function aiContinue() {
-    setAiKind('continue'); setAiErr(''); setAiResults([]); setAiPolishText('');
-    setAiBusy(true);
-    try {
-      const { suggestions } = await aiApi.getWritingInspiration({ draft: content, ...(targetUid ? { targetUid } : {}) });
-      setAiResults(suggestions || []);
-    } catch (err) {
-      // 9002/未配置降级已由 client 层 toast；此处给面板内提示
-      setAiErr(err instanceof ApiError ? err.message : '灵感暂时休息了，稍后再试～');
-    } finally {
-      setAiBusy(false);
-    }
-  }
-  /* AI 润色：POST /ai/polish（正文 ≥10 字，不足服务端 1002） */
-  async function aiPolish() {
-    setAiKind('polish'); setAiErr(''); setAiResults([]); setAiPolishText('');
-    const draft = content.trim();
-    if (countWords(draft) < 10) { setAiErr('先写下一点内容，我再帮你润色～'); return; }
-    setAiBusy(true);
-    try {
-      const { polished } = await aiApi.polishLetter(draft);
-      setAiPolishText(polished || '');
-    } catch (err) {
-      setAiErr(err instanceof ApiError ? err.message : '润色暂时不可用，稍后再试～');
-    } finally {
-      setAiBusy(false);
-    }
-  }
 
   function insertLine(ln) { setContent((c) => (c ? c + '\n\n' + ln : ln)); }
   const wc = countWords(content);
@@ -182,46 +147,6 @@ export function WriteScreen() {
               <span className="sheet-close" onClick={() => setInspireOpen(false)}>✕</span>
             </div>
             <div className="sheet-scroll">
-              <div className="ai-inspire">
-                <div className="ai-inspire-head">
-                  <span className="ai-badge">AI</span>
-                  <span className="ai-inspire-title">灵感推演</span>
-                  <span className="ai-inspire-note">学习你的笔触</span>
-                </div>
-                <div className="ai-actions">
-                  <button className="ai-action" onClick={aiContinue} disabled={aiBusy}>
-                    <span className="ai-action-glyph">✎</span><span>顺着我的风格续写</span>
-                  </button>
-                  <button className="ai-action" onClick={aiPolish} disabled={aiBusy}>
-                    <span className="ai-action-glyph">✦</span><span>帮我润色这段</span>
-                  </button>
-                </div>
-                {aiBusy && (
-                  <div className="ai-loading"><span className="ai-dots"><i/><i/><i/></span>正在揣摩你的笔触……</div>
-                )}
-                {aiErr && <div className="ai-error">{aiErr}</div>}
-                {!aiBusy && aiKind === 'continue' && aiResults.length > 0 && (
-                  <div className="ai-results">
-                    {aiResults.map((r, i) => (
-                      <button className="ai-suggestion" key={i} onClick={() => { insertLine(r); toast('已添加到信里'); }}>
-                        <span>{r}</span><span className="inspire-add">＋</span>
-                      </button>
-                    ))}
-                    <button className="ai-regen" onClick={aiContinue}>换一批</button>
-                  </div>
-                )}
-                {!aiBusy && aiKind === 'polish' && aiPolishText && (
-                  <div className="ai-polish">
-                    <div className="ai-polish-label">润色后的版本</div>
-                    <div className="ai-polish-text">{aiPolishText}</div>
-                    <div className="ai-polish-actions">
-                      <button className="ai-apply" onClick={() => { setContent(aiPolishText); setInspireOpen(false); toast('已换为润色版本'); }}>替换原文</button>
-                      <button className="ai-regen" onClick={aiPolish}>再润一次</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="inspire-divider"><span>或者，从这些开始</span></div>
               <p className="inspire-intro">不知道从哪儿落笔？挑一句开始，或只是读一读，让思绪慢慢展开。</p>
               {INSPIRATION.map((g) => (
                 <div className="inspire-group" key={g.label}>

@@ -4,8 +4,8 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { countWords } from '../utils/countWords.js';
-import { FIRST_MIN, REPLY_MIN } from '../constants/index.js';
-import { lettersApi, draftsApi, aiApi, anonApi, matchesApi, useResource, ApiError } from '../api/index.js';
+import { FIRST_MIN, REPLY_MIN, INSPIRATION } from '../constants/index.js';
+import { lettersApi, draftsApi, anonApi, matchesApi, useResource, ApiError } from '../api/index.js';
 import { useUI } from '../store/ui.jsx';
 import { loadWriteDraft, clearWriteDraft, useWriteDraftAutosave } from '../store/writeDraft.js';
 
@@ -68,8 +68,6 @@ export function DWrite() {
   const [title, setTitle] = useState(replyTo ? '回信：' + (replyTo.title || '') : draft ? draft.title : (saved && saved.draftTitle) || '');
   const [body, setBody] = useState(draft ? String(draft.excerpt || '').replace(/…$/, '') : (saved && saved.draftBody) || '');
   const [draftId, setDraftId] = useState(draft?._id || (saved && saved.draftId) || null);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [sugs, setSugs] = useState([]);
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [sentOk, setSentOk] = useState(false); // 寄出成功后关闭自动暂存（防清理后又被回存）
@@ -95,31 +93,7 @@ export function DWrite() {
   function pickExt() { setBoardSel(false); } // 点回带入的收件人（推荐/主页进入的对象）
   function pickBoard() { setBoardSel((b) => !b); setIsAnon(false); } // 再点一次取消
 
-  async function aiContinue() {
-    setAiBusy(true); setSugs([]);
-    try {
-      const target = toUid && !board ? { targetUid: toUid } : {};
-      const { suggestions } = await aiApi.getWritingInspiration({ draft: body, ...target });
-      setSugs(suggestions || []);
-    } catch {
-      /* 降级/异常已由 client 层 toast */
-    } finally {
-      setAiBusy(false);
-    }
-  }
-  async function aiPolish() {
-    if (countWords(body) < 10) { toast('先写下一点内容，再帮你润色'); return; }
-    setAiBusy(true);
-    try {
-      const { polished } = await aiApi.polishLetter(body.trim());
-      if (polished) { setBody(polished); toast('润色完成 ✦'); }
-    } catch {
-      /* 异常已由 client 层 toast */
-    } finally {
-      setAiBusy(false);
-    }
-  }
-  function insert(s) { setBody((b) => (b ? b.trimEnd() + '\n\n' : '') + s); setSugs([]); }
+  function insert(s) { setBody((b) => (b ? b.trimEnd() + '\n\n' : '') + s); setSavedClean(false); }
   function onBack() { navigate('/inbox'); }
 
   async function saveDraft() {
@@ -251,18 +225,16 @@ export function DWrite() {
 
         <div className="dsk-write-side">
           <div className="card dsk-card">
-            <div className="dsk-ai-title">✦ 灵感</div>
-            <div className="dsk-ai-sub">根据你以往信件的笔触，续写或润色。生成的句子只是提议，采不采用由你。</div>
-            <div className="dsk-ai-actions">
-              <button className={'dsk-ai-action' + (aiBusy ? ' busy' : '')} onClick={aiContinue} disabled={aiBusy}>✎ 顺着我的风格续写</button>
-              <button className={'dsk-ai-action' + (aiBusy ? ' busy' : '')} onClick={aiPolish} disabled={aiBusy}>❋ 帮我润色这段</button>
-            </div>
-            {aiBusy && <div className="dsk-ai-actions"><div className="dsk-ai-shimmer" /><div className="dsk-ai-shimmer" /></div>}
-            {sugs.length > 0 && (
-              <div className="dsk-ai-actions tab-fade">
-                {sugs.map((s, i) => <div key={i} className="dsk-ai-sug" onClick={() => insert(s)}>{s}</div>)}
+            <div className="dsk-ai-title">❋ 灵感</div>
+            <div className="dsk-ai-sub">不知道从哪儿落笔？挑一句开始，点击即插入信里。</div>
+            {INSPIRATION.map((g) => (
+              <div className="dsk-inspire-group" key={g.label}>
+                <div className="dsk-inspire-label">{g.label}</div>
+                {g.lines.map((ln) => (
+                  <div key={ln} className="dsk-ai-sug" onClick={() => insert(ln)}>{ln}</div>
+                ))}
               </div>
-            )}
+            ))}
           </div>
           <div className="card dsk-card">
             <div className="dsk-ai-title">☾ 写信的约定</div>
