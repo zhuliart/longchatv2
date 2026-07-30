@@ -79,20 +79,36 @@ test('anon: 列表不泄露作者身份；isMine 仅对本人为 true', opts, as
   assert.equal(other.body.data.find((x) => x._id === postId).isMine, false);
 });
 
-test('anon: 回应 0/201 字拒绝；成功计数 +1 且回应实名', opts, async () => {
-  assert.equal((await request(app).post(`/api/v1/anon/letters/${postId}/comments`).set(B.auth)
-    .send({ content: '' })).body.code, 1002);
-  assert.equal((await request(app).post(`/api/v1/anon/letters/${postId}/comments`).set(B.auth)
-    .send({ content: zh(201) })).body.code, 1002);
-
-  const ok = await request(app).post(`/api/v1/anon/letters/${postId}/comments`).set(B.auth)
-    .send({ content: '读到你的句子，很安心。' });
+test('anon: 树洞回信 —— 99 字 1002；100 字落作者收件箱（作者见实名，回信人见匿名）', opts, async () => {
+  // 自己回自己的匿名信 → 拒绝
+  assert.equal((await request(app).post(`/api/v1/anon/letters/${postId}/reply`).set(A.auth)
+    .send({ content: zh(100) })).body.code, 9001);
+  // 边界：99 → 1002
+  assert.equal((await request(app).post(`/api/v1/anon/letters/${postId}/reply`).set(B.auth)
+    .send({ content: zh(99) })).body.code, 1002);
+  // 100 → 成功，计数 +1
+  const ok = await request(app).post(`/api/v1/anon/letters/${postId}/reply`).set(B.auth)
+    .send({ content: zh(100) });
   assert.equal(ok.body.code, 0);
-  assert.equal(ok.body.data.commentCount, 1);
+  const list = await request(app).get('/api/v1/anon/letters').set(B.auth);
+  assert.equal(list.body.data.find((x) => x._id === postId).replyCount, 1);
 
-  const list = await request(app).get(`/api/v1/anon/letters/${postId}/comments`).set(A.auth);
-  assert.equal(list.body.data.length, 1);
-  assert.equal(list.body.data[0].fromNickname, '匿乙'); // 发信匿名、回应实名
+  // 作者 A 收件箱：能看到 B 实名的回信
+  const aInbox = await request(app).get('/api/v1/letters/inbox').set(A.auth);
+  const got = aInbox.body.data[0];
+  assert.equal(got.senderNickname, '匿乙');
+  // B 已发出：收件人（树洞作者）对 B 保持匿名
+  const bSent = await request(app).get('/api/v1/letters/sent').set(B.auth);
+  assert.equal(bSent.body.data[0].receiverNickname, '匿名笔友');
+  assert.equal(bSent.body.data[0].to_uid, null);
+
+  // A 从收件箱正常回信 → B 收到的信寄件人仍是「匿名笔友」（线程内持续脱敏）
+  const reply = await request(app).post(`/api/v1/letters/${got._id}/reply`).set(A.auth)
+    .send({ content: zh(100) });
+  assert.equal(reply.body.code, 0);
+  const bInbox = await request(app).get('/api/v1/letters/inbox').set(B.auth);
+  assert.equal(bInbox.body.data[0].senderNickname, '匿名笔友');
+  assert.equal(bInbox.body.data[0].from_uid, null);
 });
 
 test('letters: 匿名直寄 —— 收件人视角隐去寄件人，寄件人视角正常', opts, async () => {

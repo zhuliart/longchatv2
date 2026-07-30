@@ -17,6 +17,10 @@ const letterSchema = new mongoose.Schema(
     is_first: { type: Boolean, default: false },
     // 匿名寄出：收件人视角隐去寄件人身份（列表/详情显示「匿名笔友」，不下发 from_uid）
     is_anonymous: { type: Boolean, default: false },
+    // 线程中保持匿名的一方（更通用）：响应序列化时对「非本人」隐去该方身份；回信沿线程继承
+    anon_uid: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    // 回给匿名信区某封信（树洞回信）：记录来源
+    anon_post_id: { type: mongoose.Schema.Types.ObjectId, ref: 'AnonLetter', default: null },
     read_at: { type: Date, default: null },
     moderation: { type: String, enum: MODERATION_STATES, default: undefined },
     // 不活跃检查（T4.3 inactivityCheck，同 v0.2 №28）：7/14/30 天未获回应的标记

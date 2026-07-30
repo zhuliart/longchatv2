@@ -320,3 +320,7 @@ body { margin: 0; background: var(--color-bg); }
 }
 .dsk-restore-clear, .dsk-restore-dismiss { cursor: pointer; color: var(--color-accent); font-weight: 600; }
 .dsk-restore-dismiss { margin-left: auto; }
+.dsk-anon-foot-row { display: flex; align-items: center; margin-top: 10px; }
+.dsk-anon-count { font-size: 12.5px; color: var(--color-ink-secondary); }
+.dsk-anon-reply { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--color-accent); cursor: pointer; }
+.dsk-anon-reply:hover { text-decoration: underline; }

@@ -37,9 +37,6 @@ export function AnonScreen() {
       setLoadingMore(false);
     }
   }
-  function bump(id, count) {
-    setPages((ps) => ps.map((page) => page.map((x) => (x._id === id ? { ...x, commentCount: count } : x))));
-  }
   const goWrite = () => navigate('/write', { state: { board: true } });
 
   return (
@@ -47,7 +44,7 @@ export function AnonScreen() {
       <StatusBar dark />
       <NavBar title="匿名信区" onBack={() => navigate(-1)} />
       <div className="page-scroll" style={{ padding: '12px 16px 24px' }}>
-        <div className="anon-page-sub">没有署名的心里话 —— 发信匿名，回应实名，谁都可以读</div>
+        <div className="anon-page-sub">没有署名的心里话 —— 谁都可以读；回信不公开，会送进作者的收件箱</div>
         {first.loading ? (
           <SkeletonList rows={3} />
         ) : first.error ? (
@@ -68,7 +65,7 @@ export function AnonScreen() {
                 {post.title && <div className="anon-card-title">{post.title}</div>}
                 <div className="feed-diary text-clamp-3">{post.content}</div>
                 <div className="feed-footer">
-                  <span className="comment-btn">💬 {post.commentCount} 回应</span>
+                  <span className="comment-btn">✉ {post.replyCount || 0} 人回信</span>
                 </div>
               </div>
             ))}
@@ -82,8 +79,7 @@ export function AnonScreen() {
       </div>
       <button className="fab" onClick={goWrite} aria-label="写一封匿名信">✎</button>
       {open && (
-        <AnonSheet post={open} onClose={() => setOpen(null)}
-          onPosted={(count) => bump(open._id, count)} />
+        <AnonSheet post={open} onClose={() => setOpen(null)} />
       )}
     </div>
   );

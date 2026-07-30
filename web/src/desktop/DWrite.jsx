@@ -23,6 +23,7 @@ export function DWrite() {
   const { toast } = useUI();
   const params = state || {};
   const replyTo = params.replyTo;
+  const anonReply = params.anonReply || null; // 回一封匿名信：{ id, title }
   const draft = params.draft;
   const saved = state ? null : loadWriteDraft();
 
@@ -76,10 +77,10 @@ export function DWrite() {
   // 从自动暂存恢复的内容：给「清空重写」入口
   const [showRestored, setShowRestored] = useState(!!saved && !!(saved.draftBody || saved.draftTitle));
 
-  const board = boardSel;
-  const required = board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : first ? FIRST_MIN : REPLY_MIN;
+  const board = boardSel && !anonReply;
+  const required = anonReply ? REPLY_MIN : board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : first ? FIRST_MIN : REPLY_MIN;
   const wc = countWords(body);
-  const canSend = board ? wc >= required : (replyToId || toUid) && wc >= required;
+  const canSend = (board || anonReply) ? wc >= required : (replyToId || toUid) && wc >= required;
 
   useWriteDraftAutosave({ targetUid: toUid, targetNickname: toName, isFirst: first, board, draftId, draftTitle: title, draftBody: body }, !sentOk && !savedClean);
 
@@ -144,10 +145,18 @@ export function DWrite() {
 
   async function send() {
     if (sending) return;
-    if (!board && !replyToId && !toUid) { toast('先选择收信人'); return; }
+    if (!board && !anonReply && !replyToId && !toUid) { toast('先选择收信人'); return; }
     if (wc < required) { toast(`还差 ${required - wc} 字（至少 ${required} 字）`); return; }
     setSending(true);
     try {
+      if (anonReply) {
+        await anonApi.replyAnonLetter(anonReply.id, { title, content: body });
+        setSentOk(true);
+        clearWriteDraft();
+        toast('回信已送进 TA 的收件箱 ✦');
+        setTimeout(() => navigate('/anon'), 600);
+        return;
+      }
       if (board) {
         await anonApi.sendAnonLetter({ title, content: body });
         setSentOk(true); // 先停自动暂存，再清理，防 400ms 竞态回存
@@ -173,10 +182,11 @@ export function DWrite() {
     <div className="dsk-page">
       <div className="dsk-back" onClick={onBack}>‹ 返回信箱</div>
       <div className="dsk-head">
-        <div className="dsk-title">{replyTo ? '回一封信' : board ? '写一封匿名信' : '写一封信'}</div>
+        <div className="dsk-title">{anonReply ? '回一封匿名信' : replyTo ? '回一封信' : board ? '写一封匿名信' : '写一封信'}</div>
         <div className="dsk-sub">
-          {replyTo ? `回复 ${replyTo.senderNickname} 的「${replyTo.title}」`
-            : board ? '寄往匿名信区 —— 所有人可读、可回应，没有人知道是你'
+          {anonReply ? `回复匿名信${anonReply.title ? `「${anonReply.title}」` : ''} —— 回信会送进 TA 的收件箱`
+            : replyTo ? `回复 ${replyTo.senderNickname} 的「${replyTo.title}」`
+            : board ? '寄往匿名信区 —— 所有人可读，回信会送进你的收件箱'
             : '字数不是门槛，是一种慢下来的邀请'}
         </div>
       </div>
@@ -184,7 +194,9 @@ export function DWrite() {
         <div className="card dsk-write-paper">
           <div className="dsk-recipient-row">
             <span className="dsk-recipient-label">致</span>
-            {replyTo ? (
+            {anonReply ? (
+              <span className="dsk-recipient active">◐ 匿名笔友</span>
+            ) : replyTo ? (
               <span className="dsk-recipient active">{toName}</span>
             ) : (
               <>
@@ -219,7 +231,8 @@ export function DWrite() {
               <span className="dsk-restore-dismiss" onClick={() => setShowRestored(false)}>继续写 ✓</span>
             </div>
           )}
-          {board && <div className="dsk-board-note">这封信会出现在所有人的「匿名信区」，署名固定为「匿名笔友」。</div>}
+          {anonReply && <div className="dsk-board-note">TA 会在收件箱看到你的署名回信；但 TA 对你仍是「匿名笔友」。</div>}
+          {board && <div className="dsk-board-note">这封信会出现在所有人的「匿名信区」，回信会送进你的收件箱。</div>}
           {isAnon && !board && <div className="dsk-board-note">对方只会看到「匿名笔友」，不会知道这封信来自你。</div>}
           <input className="dsk-write-title" placeholder="标题（可不填，≤30字）" maxLength={30} value={title} onChange={(e) => { setTitle(e.target.value); setSavedClean(false); }} />
           <textarea className="dsk-write-body"
@@ -227,10 +240,10 @@ export function DWrite() {
             value={body} onChange={(e) => { setBody(e.target.value); setSavedClean(false); }} />
           <div className="dsk-write-foot">
             <span className={'dsk-wc' + (wc >= required ? ' ok' : '')}>
-              已写 <b>{wc}</b> / {required} 字{board ? '（匿名信）' : replyToId ? '（回信）' : first ? '（首封）' : ''}
+              已写 <b>{wc}</b> / {required} 字{anonReply ? '（回信）' : board ? '（匿名信）' : replyToId ? '（回信）' : first ? '（首封）' : ''}
             </span>
             <div style={{ display: 'flex', gap: 10 }}>
-              {!board && <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>}
+              {!board && !anonReply && <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>}
               <div className={'btn btn-primary' + (canSend && !sending ? '' : ' btn-disabled')} onClick={send}>{sending ? '寄出中…' : '封存寄出'}</div>
             </div>
           </div>
