@@ -23,7 +23,8 @@ export function DInbox() {
   const inbox = useResource(() => lettersApi.getInbox(0), []);
   const sent = useResource(() => lettersApi.getSent(0), []);
   const drafts = useResource(() => draftsApi.getDrafts(0), []);
-  const cur = tab === 'inbox' ? inbox : tab === 'sent' ? sent : drafts;
+  const archived = useResource(() => lettersApi.getArchived(0), []);
+  const cur = tab === 'inbox' ? inbox : tab === 'sent' ? sent : tab === 'archived' ? archived : drafts;
   const list = cur.data || [];
   const sel = tab === 'draft' ? null : list.find((x) => x._id === selId) || null;
 
@@ -45,13 +46,27 @@ export function DInbox() {
     }
   }
 
+  async function unarchive() {
+    const id = sel._id;
+    try {
+      await lettersApi.unarchiveLetter(id);
+      toast('已放回收件箱 ✦');
+      setSelId(null);
+      archived.reload();
+      inbox.reload();
+    } catch {
+      /* 异常已由 client 层 toast */
+    }
+  }
+
   async function archive() {
     const id = sel._id;
     try {
       await lettersApi.archiveLetter(id);
-      toast('已归档 ✦');
+      toast('已归档 ✦ 可在「归档」栏找到');
       setSelId(null);
       inbox.reload();
+      archived.reload();
     } catch {
       /* 异常已由 client 层 toast */
     }
@@ -69,6 +84,7 @@ export function DInbox() {
             <div className={'seg-tab' + (tab === 'inbox' ? ' active' : '')} onClick={() => { setTab('inbox'); setSelId(null); }}>收件箱</div>
             <div className={'seg-tab' + (tab === 'sent' ? ' active' : '')} onClick={() => { setTab('sent'); setSelId(null); }}>已发出</div>
             <div className={'seg-tab' + (tab === 'draft' ? ' active' : '')} onClick={() => { setTab('draft'); setSelId(null); }}>草稿箱</div>
+            <div className={'seg-tab' + (tab === 'archived' ? ' active' : '')} onClick={() => { setTab('archived'); setSelId(null); }}>归档</div>
           </div>
           <div className="dsk-mail-list">
             {cur.loading ? (
@@ -76,9 +92,9 @@ export function DInbox() {
             ) : cur.error ? (
               <ErrorState onRetry={cur.reload} />
             ) : list.length === 0 ? (
-              <EmptyState icon={tab === 'draft' ? '✎' : '✉'}
-                title={tab === 'inbox' ? '还没有来信' : tab === 'sent' ? '还没有发出过信件' : '还没有草稿'}
-                sub={tab === 'inbox' ? '去发现灵魂匹配吧' : tab === 'sent' ? '写下你的第一封信' : '未写完的信会自动留在这里'} />
+              <EmptyState icon={tab === 'draft' ? '✎' : tab === 'archived' ? '▤' : '✉'}
+                title={tab === 'inbox' ? '还没有来信' : tab === 'sent' ? '还没有发出过信件' : tab === 'archived' ? '归档箱是空的' : '还没有草稿'}
+                sub={tab === 'inbox' ? '去发现灵魂匹配吧' : tab === 'sent' ? '写下你的第一封信' : tab === 'archived' ? '在信里点「归档」可以把信收进这里' : '未写完的信会自动留在这里'} />
             ) : tab === 'draft' ? (
               list.map((d) => (
                 <div key={d._id} className="dsk-mail-item">
@@ -128,8 +144,9 @@ export function DInbox() {
               </div>
               <div className="dsk-letter-body">{sel.content}</div>
               <div className="dsk-letter-actions">
-                {tab === 'inbox' && <div className="btn btn-primary" onClick={() => goWrite({ replyTo: sel })}>回 信</div>}
+                {(tab === 'inbox' || tab === 'archived') && <div className="btn btn-primary" onClick={() => goWrite({ replyTo: sel })}>回 信</div>}
                 {tab === 'inbox' && <div className="btn btn-ghost" onClick={archive}>归档</div>}
+                {tab === 'archived' && <div className="btn btn-ghost" onClick={unarchive}>取消归档</div>}
                 {tab === 'sent' && <div className="btn btn-ghost" onClick={() => toast('对方回信后会出现在收件箱 ✦')}>再写一封</div>}
               </div>
             </div>

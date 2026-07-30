@@ -16,5 +16,11 @@ export const sendLetter = (payload) => client.post('/letters', payload);
 /** 回信：{ title, content } */
 export const replyLetter = (id, payload) => client.post(`/letters/${id}/reply`, payload);
 
-/** 归档 */
+/** 归档（收进归档箱，不是删除） */
 export const archiveLetter = (id) => client.post(`/letters/${id}/archive`);
+
+/** 归档箱列表 */
+export const getArchived = (page = 0) => client.get(`/letters/archived?page=${page}`);
+
+/** 取消归档：放回收件箱 */
+export const unarchiveLetter = (id) => client.post(`/letters/${id}/unarchive`);

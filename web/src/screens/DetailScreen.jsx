@@ -61,7 +61,7 @@ export function DetailScreen() {
     setArchiving(true);
     try {
       await lettersApi.archiveLetter(id);
-      toast('已归档 ✦');
+      toast('已归档 ✦ 可在信箱·归档栏找到');
       back();
     } catch {
       /* 网络异常已由 client 层 toast */

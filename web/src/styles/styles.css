@@ -1982,3 +1982,11 @@ body {
 .anon-read-body { white-space: pre-wrap; line-height: 1.9; font-family: var(--font-serif); }
 .anon-read-meta { margin-top: 10px; font-size: 12px; color: var(--color-ink-secondary); }
 .anon-page-sub { color: var(--color-ink-secondary); font-size: 12.5px; font-family: var(--font-serif); padding: 2px 2px 12px; }
+
+/* 归档箱（信箱第 4 栏） */
+.archived-item { margin-bottom: 4px; }
+.archived-restore {
+  margin: -6px 2px 12px; padding: 6px 12px; font-size: 12.5px;
+  color: var(--color-accent); cursor: pointer; font-family: var(--font-serif);
+}
+.archived-restore:active { opacity: .7; }

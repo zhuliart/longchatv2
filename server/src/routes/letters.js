@@ -158,6 +158,59 @@ router.get('/sent', async (req, res, next) => {
   }
 });
 
+/** 归档箱：我收到且已归档的信（归档=从收件箱收起，不是删除） */
+router.get('/archived', async (req, res, next) => {
+  try {
+    const page = parsePage(req.query.page);
+    const letters = await Letter.find({ to_uid: req.uid, status: 'archived' })
+      .sort({ created_at: -1 })
+      .skip(page * PAGE_SIZE)
+      .limit(PAGE_SIZE)
+      .populate('from_uid', 'nickname')
+      .lean();
+    res.json(
+      ok(
+        letters.map((l) => {
+          const maskSender = isAnonParty(l, l.from_uid?._id);
+          return {
+            _id: l._id,
+            from_uid: maskSender ? null : l.from_uid?._id,
+            senderNickname: maskSender ? '匿名笔友' : l.from_uid?.nickname || '',
+            isAnonymous: maskSender,
+            title: l.title,
+            content: l.content,
+            word_count: l.word_count,
+            status: l.status,
+            is_first: l.is_first,
+            created_at: l.created_at,
+          };
+        })
+      )
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 取消归档：放回收件箱（置回已读态）；仅信件相关方 */
+router.post('/:id/unarchive', async (req, res, next) => {
+  try {
+    const id = asObjectId(req.params.id, '信件不存在');
+    const letter = await Letter.findById(id);
+    if (!letter) throw new AppError(ERR.BAD_REQUEST, '信件不存在');
+    if (!letter.from_uid.equals(req.uid) && !letter.to_uid.equals(req.uid)) {
+      throw new AppError(ERR.BAD_REQUEST, '无权限操作此信件');
+    }
+    if (letter.status === 'archived') {
+      letter.status = 'read';
+      await letter.save();
+    }
+    res.json(ok(null));
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** 信件详情：仅收发双方可读；收件人首读自动置 read + read_at（契约 §4） */
 router.get('/:id', async (req, res, next) => {
   try {
