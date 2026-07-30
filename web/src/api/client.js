@@ -83,9 +83,10 @@ async function request(method, path, body, attempt = 0) {
 
   // 9002 超时：自动重试 1 次
   if (code === 9002 && attempt === 0) return request(method, path, body, attempt + 1);
-  // 9002（重试后仍失败）：统一网络异常 toast
+  // 9002（重试后仍失败）：优先展示服务端的友好降级文案（如 AI「灵感还没送达」），
+  // 无文案才回退通用网络异常提示
   if (code === 9002) {
-    handlers.toast(NET_MSG);
+    handlers.toast(message || NET_MSG);
     throw new ApiError(code, message || NET_MSG, data);
   }
   // 9001（参数/权限/数据库/系统）：服务端 message 已面向用户（登录错误、信件不存在、
