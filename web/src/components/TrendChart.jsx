@@ -82,14 +82,18 @@ export function TrendChart({ data, moods = [] }) {
         <div className="trend-detail" key={selP.d}>
           <div className="trend-detail-head">
             <span className="trend-detail-date">{fmtMonthDay(selP.d)}</span>
-            <div className="trend-detail-right">
-              <MoodBadge emotion={selP.e} feeling={selFeeling} withFace />
-              <IntensityDots value={selP.v} size={8} />
-            </div>
+            {selP.e && (
+              <div className="trend-detail-right">
+                <MoodBadge emotion={selP.e} feeling={selFeeling} withFace />
+                <IntensityDots value={selP.v} size={8} />
+              </div>
+            )}
           </div>
-          {selDiary
-            ? <div className="trend-detail-diary">{selDiary}</div>
-            : <div className="trend-detail-empty">这天记录了心情，但没有写下日记。</div>}
+          {!selP.e
+            ? <div className="trend-detail-empty">这天没有情绪记录。</div>
+            : selDiary
+              ? <div className="trend-detail-diary">{selDiary}</div>
+              : <div className="trend-detail-empty">这天记录了心情，但没有写下日记。</div>}
         </div>
       )}
       <div className="trend-hint">轻触圆点，回看那天的心情与日记</div>
