@@ -1,24 +1,8 @@
 /* 移动端页面骨架（T5.3）：StatusBar / NavBar / TabBar / ComposeMenu */
-import { useEffect, useState } from 'react';
-import { pad2 } from '../utils/date.js';
 
-/* 伪状态栏：保留原型 54px 顶部节奏；时间改为真实时钟（"9:41" 为设计稿痕迹） */
-export function StatusBar({ dark }) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30 * 1000);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <div className={'statusbar' + (dark ? ' on-dark' : '')}>
-      <span>{now.getHours()}:{pad2(now.getMinutes())}</span>
-      <span className="sb-icons">
-        <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="6" width="3" height="5" rx="1"/><rect x="4.5" y="4" width="3" height="7" rx="1"/><rect x="9" y="2" width="3" height="9" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
-        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 2.2c2 0 3.8.8 5.2 2l1.1-1.2C12.6 1.3 10.4.4 8 .4S3.4 1.3 1.7 3l1.1 1.2C4.2 3 6 2.2 8 2.2z" opacity=".9"/><path d="M8 5.2c1.2 0 2.3.5 3.1 1.3l1.1-1.2C11.2 4.2 9.7 3.6 8 3.6s-3.2.6-4.2 1.7l1.1 1.2C5.7 5.7 6.8 5.2 8 5.2z"/><circle cx="8" cy="9" r="1.6"/></svg>
-        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx="0.75" fill="currentColor" opacity=".5"/></svg>
-      </span>
-    </div>
-  );
+/* 顶部留白（原「伪状态栏」已移除：真机自带时间/电量，避免重复；仅留呼吸空隙） */
+export function StatusBar() {
+  return <div className="statusbar-space" aria-hidden="true" />;
 }
 
 export function NavBar({ title, onBack }) {

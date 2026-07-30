@@ -1990,3 +1990,6 @@ body {
   color: var(--color-accent); cursor: pointer; font-family: var(--font-serif);
 }
 .archived-restore:active { opacity: .7; }
+
+/* 原伪状态栏的替代留白（真机自带系统状态栏） */
+.statusbar-space { height: 12px; flex: 0 0 auto; }

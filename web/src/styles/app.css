@@ -35,4 +35,4 @@
   animation: none;
 }
 .dsk-onboard .page-scroll { overflow: visible; }
-.dsk-onboard .statusbar { display: none; }
+.dsk-onboard .statusbar, .dsk-onboard .statusbar-space { display: none; }
