@@ -333,3 +333,4 @@ body { margin: 0; background: var(--color-bg); }
   background: color-mix(in oklab, var(--color-ink-secondary) 32%, transparent);
   border-radius: 4px; border: 2px solid transparent; background-clip: content-box;
 }
+.dsk-theme-item { margin-bottom: 4px; font-size: 13px; }

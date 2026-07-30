@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Avatar } from '../components/primitives.jsx';
 import { lettersApi, useResource } from '../api/index.js';
 import { useUser } from '../store/user.jsx';
+import { useUI } from '../store/ui.jsx';
 
 const DSK_NAV = [
   { key: 'home', path: '/', label: '此刻', glyph: '✶' },
@@ -17,6 +18,7 @@ export function DSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { me } = useUser();
+  const { dark, toggleDark } = useUI();
   // 未读角标：取收件箱首页未读（status==='sent'）计数（轻量，随壳层挂载刷新）
   const { data: inbox } = useResource(() => lettersApi.getInbox(0), []);
   const unread = (inbox || []).filter((l) => l.status === 'sent').length;
@@ -40,6 +42,12 @@ export function DSidebar() {
         </div>
       ))}
       <div className="dsk-side-foot">
+        {/* 深浅色切换（与移动端首页月亮按钮同一全局状态） */}
+        <div className="dsk-nav-item dsk-theme-item" onClick={toggleDark}
+          title={dark ? '切换到浅色' : '切换到深色'}>
+          <span className="dsk-nav-glyph">{dark ? '☾' : '☀'}</span>
+          <span className="lbl">{dark ? '深色 · 点击切浅' : '浅色 · 点击切深'}</span>
+        </div>
         <div className="dsk-user-chip" onClick={() => navigate('/me')}>
           <Avatar name={me?.nickname || '·'} />
           <div className="dsk-user-text">
