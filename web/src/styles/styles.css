@@ -588,6 +588,15 @@
   --tabbar-ink-active: color-mix(in oklab, var(--dark-tint) 10%, #f0ecf4);
   --tabbar-glyph-active: var(--color-accent);
   --shadow-card: 0 1px 2px rgba(0,0,0,.42), 0 14px 32px -14px rgba(0,0,0,.72);
+  /* 深色下浮雕阴影：压暗高光。注意组合变量在 :root 已被替换定值（var 在定义处求值），
+     必须在此作用域连组合阴影一起重定义才能生效。 */
+  --neu-lo: rgba(0,0,0,.85);
+  --neu-hi: rgba(255,255,255,.055);
+  --neu-raise: -3px -3px 7px var(--neu-hi), 4px 5px 11px var(--neu-lo);
+  --neu-raise-sm: -2px -2px 5px var(--neu-hi), 3px 3px 7px var(--neu-lo);
+  --neu-press: inset 2px 2px 5px var(--neu-lo), inset -2px -2px 5px var(--neu-hi);
+  --neu-candy: 4px 5px 12px -3px var(--neu-lo), inset 1px 1px 1px rgba(255,255,255,.12), inset -2px -3px 5px rgba(0,0,0,.4);
+  --neu-candy-press: 2px 2px 6px -2px var(--neu-lo), inset 2px 2px 5px rgba(0,0,0,.5), inset -1px -1px 2px rgba(255,255,255,.08);
 }
 /* neutralize light-theme hardcoded text overrides (pastel / mist) on dark ground */
 .device-screen.is-dark .home-hello,
