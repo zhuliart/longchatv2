@@ -20,10 +20,11 @@ export function WriteScreen() {
   const saved = state ? null : loadWriteDraft(); // 直接进入且无参数时恢复自动暂存
   const params = state || saved || {};
   const replyToId = params.replyToId || null;
+  const anonReply = params.anonReply || null; // 回一封匿名信：{ id, title }
   // 旧版暂存可能把信区存成哨兵收件人 '__board'——一并识别为信区模式
-  const board = params.board === true || params.targetUid === '__board'; // 寄往匿名信区
+  const board = (params.board === true || params.targetUid === '__board') && !anonReply; // 寄往匿名信区
   const isFirst = !replyToId && params.isFirst !== false;
-  const required = board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : isFirst ? FIRST_MIN : REPLY_MIN;
+  const required = anonReply ? REPLY_MIN : board ? anonApi.BOARD_MIN : replyToId ? REPLY_MIN : isFirst ? FIRST_MIN : REPLY_MIN;
   const [isAnon, setIsAnon] = useState(false); // 匿名寄给指定收件人
   const [title, setTitle] = useState(params.draftTitle || '');
   const [content, setContent] = useState(params.draftBody || '');
@@ -112,16 +113,17 @@ export function WriteScreen() {
   async function send() {
     if (sending) return;
     if (!canSend) { toast(`还需 ${required - wc} 字`); return; }
-    if (!board && !replyToId && !targetUid) { toast('先选择收信人'); return; }
+    if (!board && !anonReply && !replyToId && !targetUid) { toast('先选择收信人'); return; }
     setSending(true);
     try {
-      if (board) await anonApi.sendAnonLetter({ title, content });
+      if (anonReply) await anonApi.replyAnonLetter(anonReply.id, { title, content });
+      else if (board) await anonApi.sendAnonLetter({ title, content });
       else if (replyToId) await lettersApi.replyLetter(replyToId, { title, content });
       else await lettersApi.sendLetter({ targetUid, title, content, isAnonymous: isAnon });
       setSentOk(true); // 先停自动暂存，再清理，防 400ms 竞态回存
       clearWriteDraft();
-      toast(board ? '已寄往匿名信区 ✦' : isAnon ? '信已匿名寄出 ✦' : '信件已寄出 ✦');
-      navigate(board ? '/' : '/inbox');
+      toast(anonReply ? '回信已送进 TA 的收件箱 ✦' : board ? '已寄往匿名信区 ✦' : isAnon ? '信已匿名寄出 ✦' : '信件已寄出 ✦');
+      navigate(anonReply ? '/anon' : board ? '/' : '/inbox');
     } catch (err) {
       // 1002 字数 / 1001 违规 / 1003 拒收：就地提示不关页
       if (err instanceof ApiError && [1001, 1002, 1003].includes(err.code)) toast(err.message);
@@ -134,10 +136,10 @@ export function WriteScreen() {
   return (
     <div className="page is-overlay">
       <StatusBar dark />
-      <NavBar title={replyToId ? '回信' : board ? '匿名信' : '写信'} onBack={back} />
+      <NavBar title={anonReply ? '回匿名信' : replyToId ? '回信' : board ? '匿名信' : '写信'} onBack={back} />
       <div className="recipient-bar">
         <span className="recipient-label">致：</span>
-        <span className="recipient-name">{board ? '◐ 匿名信区' : params.targetNickname || '请选择收信人'}</span>
+        <span className="recipient-name">{anonReply ? '◐ 匿名笔友' : board ? '◐ 匿名信区' : params.targetNickname || '请选择收信人'}</span>
         {!board && !replyToId && targetUid && (
           <label className={'anon-toggle' + (isAnon ? ' on' : '')}>
             <input type="checkbox" checked={isAnon} onChange={(e) => setIsAnon(e.target.checked)} />
@@ -145,8 +147,8 @@ export function WriteScreen() {
           </label>
         )}
       </div>
-      {(board || isAnon) && (
-        <div className="anon-note">{board ? '所有人可读、可回应，署名固定为「匿名笔友」' : '对方只会看到「匿名笔友」，不会知道是你'}</div>
+      {(board || isAnon || anonReply) && (
+        <div className="anon-note">{anonReply ? 'TA 会看到你的署名回信；但 TA 对你仍保持匿名' : board ? '所有人可读，回信会送进你的收件箱' : '对方只会看到「匿名笔友」，不会知道是你'}</div>
       )}
       <div className="page-scroll">
         <div className="letter-paper ruled">
@@ -168,7 +170,7 @@ export function WriteScreen() {
           <span className="inspire-label">灵感</span>
         </button>
         <div className="send-right">
-          {!board && <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} style={{ padding: '11px 16px' }} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>}
+          {!board && !anonReply && <div className={'btn btn-ghost' + (savingDraft ? ' btn-disabled' : '')} style={{ padding: '11px 16px' }} onClick={saveDraft}>{savingDraft ? '保存中…' : '存草稿'}</div>}
           <div className={'btn btn-primary' + (!canSend || sending ? ' btn-disabled' : '')} onClick={send}>{sending ? '寄出中...' : '封存寄出'}</div>
         </div>
       </div>

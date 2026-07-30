@@ -209,7 +209,7 @@ export function HomeScreen() {
                 {post.title && <div className="anon-card-title">{post.title}</div>}
                 <div className="feed-diary text-clamp-3">{post.content}</div>
                 <div className="feed-footer">
-                  <span className="comment-btn">💬 {post.commentCount} 回应</span>
+                  <span className="comment-btn">✉ {post.replyCount || 0} 人回信</span>
                 </div>
               </div>
             ))
@@ -217,8 +217,7 @@ export function HomeScreen() {
         </div>
       </div>
       {anonOpen && (
-        <AnonSheet post={anonOpen} onClose={() => setAnonOpen(null)}
-          onPosted={(count) => anon.setData((arr) => (arr || []).map((x) => (x._id === anonOpen._id ? { ...x, commentCount: count } : x)))} />
+        <AnonSheet post={anonOpen} onClose={() => setAnonOpen(null)} />
       )}
     </div>
   );

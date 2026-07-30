@@ -8,6 +8,15 @@ import { assertClean } from '../services/moderation.js';
 
 const router = Router();
 
+
+/** 线程中的匿名方（兼容旧数据：is_anonymous 表示寄件人匿名） */
+const anonPartyOf = (l) =>
+  l.anon_uid || (l.is_anonymous ? (l.from_uid?._id || l.from_uid) : null);
+const isAnonParty = (l, uid) => {
+  const a = anonPartyOf(l);
+  return !!a && String(a) === String(uid);
+};
+
 const FIRST_MIN = 150;
 const REPLY_MIN = 100;
 
@@ -72,6 +81,7 @@ router.post('/', async (req, res, next) => {
       status: 'sent',
       is_first: isFirst,
       is_anonymous: req.body?.isAnonymous === true, // 匿名寄出：收件人不见寄件人身份
+      ...(req.body?.isAnonymous === true && { anon_uid: req.uid }),
       ...(moderation && { moderation }),
     });
     await afterSent(req.uid, toUid);
@@ -93,19 +103,21 @@ router.get('/inbox', async (req, res, next) => {
       .lean();
     res.json(
       ok(
-        letters.map((l) => ({
+        letters.map((l) => {
+          const maskSender = isAnonParty(l, l.from_uid?._id); // 匿名方=寄件人 → 对收件人隐去
+          return {
           _id: l._id,
-          // 匿名信：收件人视角隐去寄件人（不下发 from_uid，昵称显示「匿名笔友」）
-          from_uid: l.is_anonymous ? null : l.from_uid?._id,
-          senderNickname: l.is_anonymous ? '匿名笔友' : l.from_uid?.nickname || '',
-          isAnonymous: !!l.is_anonymous,
+          from_uid: maskSender ? null : l.from_uid?._id,
+          senderNickname: maskSender ? '匿名笔友' : l.from_uid?.nickname || '',
+          isAnonymous: maskSender,
           title: l.title,
           content: l.content,
           word_count: l.word_count,
           status: l.status,
           is_first: l.is_first,
           created_at: l.created_at,
-        }))
+          };
+        })
       )
     );
   } catch (err) {
@@ -125,16 +137,20 @@ router.get('/sent', async (req, res, next) => {
       .lean();
     res.json(
       ok(
-        letters.map((l) => ({
+        letters.map((l) => {
+          const maskReceiver = isAnonParty(l, l.to_uid?._id); // 匿名方=收件人 → 对寄件人隐去
+          return {
           _id: l._id,
-          to_uid: l.to_uid?._id,
-          receiverNickname: l.to_uid?.nickname || '',
+          to_uid: maskReceiver ? null : l.to_uid?._id,
+          receiverNickname: maskReceiver ? '匿名笔友' : l.to_uid?.nickname || '',
+          isAnonymous: maskReceiver,
           title: l.title,
           content: l.content,
           word_count: l.word_count,
           status: l.status,
           created_at: l.created_at,
-        }))
+          };
+        })
       )
     );
   } catch (err) {
@@ -157,19 +173,20 @@ router.get('/:id', async (req, res, next) => {
       letter.read_at = new Date();
       await letter.save();
     }
-    const maskSender = letter.is_anonymous && !isSender; // 收件人视角隐去寄件人
+    const maskSender = isAnonParty(letter, letter.from_uid._id) && !isSender; // 匿名方=寄件人，看信的是收件人
+    const maskReceiver = isAnonParty(letter, letter.to_uid) && isSender; // 匿名方=收件人，看信的是寄件人
     res.json(
       ok({
         _id: letter._id,
         from_uid: maskSender ? null : letter.from_uid._id,
-        to_uid: letter.to_uid,
+        to_uid: maskReceiver ? null : letter.to_uid,
         parent_id: letter.parent_id,
         title: letter.title,
         content: letter.content,
         word_count: letter.word_count,
         status: letter.status,
         is_first: letter.is_first,
-        isAnonymous: !!letter.is_anonymous,
+        isAnonymous: maskSender || maskReceiver,
         created_at: letter.created_at,
         read_at: letter.read_at,
         senderNickname: maskSender ? '匿名笔友' : letter.from_uid.nickname || '',
@@ -205,8 +222,9 @@ router.post('/:id/reply', async (req, res, next) => {
       word_count: wordCount,
       status: 'sent',
       is_first: false,
-      // 匿名信的原寄件人在线程内继续回信时，保持匿名（否则一回信就暴露身份）
-      is_anonymous: !!(parent.is_anonymous && isSender),
+      // 沿线程继承匿名方：匿名方无论作为寄件或收件，身份对另一方持续隐去
+      anon_uid: anonPartyOf(parent),
+      is_anonymous: isAnonParty(parent, req.uid),
       ...(moderation && { moderation }),
     });
     await afterSent(req.uid, toUid);

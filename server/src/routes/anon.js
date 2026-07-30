@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { ok, ERR, AppError } from '../utils/response.js';
 import { countWords } from '../utils/countWords.js';
-import { parsePage, asObjectId, PAGE_SIZE, COMMENT_PAGE_SIZE } from '../utils/listing.js';
-import { AnonLetter, AnonComment } from '../models/index.js';
+import { parsePage, asObjectId, PAGE_SIZE } from '../utils/listing.js';
+import { AnonLetter, Letter } from '../models/index.js';
 import { assertClean } from '../services/moderation.js';
 
 const router = Router();
 
-const BOARD_MIN = 30; // 匿名信 ≥30 字（树洞轻量门槛，低于书信 150/100）
+const BOARD_MIN = 30; // 匿名信 ≥30 字（树洞轻量门槛）
+const REPLY_MIN = 100; // 树洞回信按普通回信门槛
 
 /** 寄往匿名信区：任何响应不含作者身份；落库前过内容审核 */
 router.post('/letters', async (req, res, next) => {
@@ -34,7 +35,7 @@ router.post('/letters', async (req, res, next) => {
   }
 });
 
-/** 匿名信区列表：全员可见，倒序分页；isMine 供前端标记「我写的」，不泄露他人身份 */
+/** 匿名信区列表：全员可见，倒序分页；只公开回信人数，不公开回信内容 */
 router.get('/letters', async (req, res, next) => {
   try {
     const page = parsePage(req.query.page);
@@ -50,7 +51,7 @@ router.get('/letters', async (req, res, next) => {
           title: p.title,
           content: p.content,
           word_count: p.word_count,
-          commentCount: p.comment_count,
+          replyCount: p.comment_count, // 沿用计数字段，语义为回信人次
           created_at: p.created_at,
           isMine: String(p.uid) === String(req.uid),
         }))
@@ -61,67 +62,43 @@ router.get('/letters', async (req, res, next) => {
   }
 });
 
-/** 回应匿名信（1–200 字，两级压平）：回应者以昵称示人 —— 发信匿名、回应实名 */
-router.post('/letters/:id/comments', async (req, res, next) => {
+/**
+ * 回一封匿名信（树洞回信）：以普通回信（≥100 字）落进作者收件箱 ——
+ * 作者看到回信人实名；回信人视角作者始终是「匿名笔友」（anon_uid=作者，
+ * 线程内后续往来由 letters 路由按 anon_uid 继续脱敏）。信区仅回信计数 +1。
+ */
+router.post('/letters/:id/reply', async (req, res, next) => {
   try {
     const postId = asObjectId(req.params.id, '这封匿名信不存在');
     const post = await AnonLetter.findById(postId);
     if (!post) throw new AppError(ERR.BAD_REQUEST, '这封匿名信不存在');
+    if (String(post.uid) === String(req.uid)) {
+      throw new AppError(ERR.BAD_REQUEST, '这是你自己的匿名信');
+    }
 
-    const content = String(req.body?.content || '').trim();
+    const content = String(req.body?.content || '');
     const n = countWords(content);
-    if (n < 1 || n > 200) {
-      throw new AppError(ERR.WORD_COUNT, `回应需在1-200字之间，当前${n}字`);
+    if (n < REPLY_MIN) {
+      throw new AppError(ERR.WORD_COUNT, `回信至少需要${REPLY_MIN}字，当前${n}字`);
     }
-    const moderation = await assertClean(content, 'comment');
+    const title = String(req.body?.title || '').trim();
+    if (title.length > 30) throw new AppError(ERR.BAD_REQUEST, '标题最多30字');
+    const moderation = await assertClean(title ? `${title}\n${content}` : content, 'letter');
 
-    let parentId = null;
-    if (req.body?.parentId) {
-      const pid = asObjectId(req.body.parentId, '被回复的回应不存在');
-      const parent = await AnonComment.findOne({ _id: pid, post_id: postId });
-      if (!parent) throw new AppError(ERR.BAD_REQUEST, '被回复的回应不存在');
-      parentId = parent.parent_id || parent._id; // 仅两级：回复「回复」压平到顶层
-    }
-
-    const comment = await AnonComment.create({
-      post_id: postId,
+    const letter = await Letter.create({
       from_uid: req.uid,
+      to_uid: post.uid,
+      title: title || (post.title ? `回信：${post.title}` : '回信一封匿名信'),
       content,
-      parent_id: parentId,
+      word_count: n,
+      status: 'sent',
+      is_first: false,
+      anon_uid: post.uid, // 作者是线程中保持匿名的一方
+      anon_post_id: post._id,
       ...(moderation && { moderation }),
     });
-    const updated = await AnonLetter.findByIdAndUpdate(postId, { $inc: { comment_count: 1 } }, { new: true });
-    res.json(ok({ _id: comment._id, commentCount: updated.comment_count }));
-  } catch (err) {
-    next(err);
-  }
-});
-
-/** 回应列表（每页 20）：全员可看 */
-router.get('/letters/:id/comments', async (req, res, next) => {
-  try {
-    const postId = asObjectId(req.params.id, '这封匿名信不存在');
-    if (!(await AnonLetter.exists({ _id: postId }))) {
-      throw new AppError(ERR.BAD_REQUEST, '这封匿名信不存在');
-    }
-    const page = parsePage(req.query.page);
-    const comments = await AnonComment.find({ post_id: postId })
-      .sort({ created_at: 1 })
-      .skip(page * COMMENT_PAGE_SIZE)
-      .limit(COMMENT_PAGE_SIZE)
-      .populate('from_uid', 'nickname')
-      .lean();
-    res.json(
-      ok(
-        comments.map((c) => ({
-          _id: c._id,
-          fromNickname: c.from_uid?.nickname || '',
-          content: c.content,
-          created_at: c.created_at,
-          parent_id: c.parent_id,
-        }))
-      )
-    );
+    await AnonLetter.updateOne({ _id: post._id }, { $inc: { comment_count: 1 } });
+    res.json(ok({ _id: letter._id }));
   } catch (err) {
     next(err);
   }

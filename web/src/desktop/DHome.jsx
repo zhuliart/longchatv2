@@ -151,13 +151,8 @@ export function DHome() {
 /* 匿名信区（树洞）首页小卡：最新 2 封 + 全部入口（独立页 /anon） */
 function DAnonBoard() {
   const navigate = useNavigate();
-  const { data, loading, error, reload, setData } = useResource(() => anonApi.getAnonLetters(0), []);
-  const [openId, setOpenId] = useState(null);
+  const { data, loading, error, reload } = useResource(() => anonApi.getAnonLetters(0), []);
   const posts = (data || []).slice(0, 2);
-
-  function bump(id, count) {
-    setData((arr) => (arr || []).map((x) => (x._id === id ? { ...x, commentCount: count } : x)));
-  }
 
   return (
     <div className="card dsk-card">
@@ -165,7 +160,7 @@ function DAnonBoard() {
         <span>匿名信区</span>
         <span className="more" onClick={() => navigate('/anon')}>全部 ›</span>
       </div>
-      <div className="dsk-souls-note" style={{ marginBottom: 10 }}>没有署名的心里话 · 谁都可以回应</div>
+      <div className="dsk-souls-note" style={{ marginBottom: 10 }}>没有署名的心里话 · 回信会送进对方的收件箱</div>
       {loading ? (
         <SkeletonList rows={2} />
       ) : error ? (
@@ -177,11 +172,7 @@ function DAnonBoard() {
           <span className="empty-sub" style={{ cursor: 'pointer' }} onClick={() => navigate('/write', { state: { board: true } })}>写下第一封没有署名的心里话 ›</span>
         </div>
       ) : (
-        posts.map((post) => (
-          <DAnonItem key={post._id} post={post} open={openId === post._id}
-            onToggle={() => setOpenId(openId === post._id ? null : post._id)}
-            onPosted={(c) => bump(post._id, c)} />
-        ))
+        posts.map((post) => <DAnonItem key={post._id} post={post} />)
       )}
     </div>
   );
