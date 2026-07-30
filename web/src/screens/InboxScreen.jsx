@@ -14,6 +14,7 @@ const EMPTY = {
   inbox: { icon: '✉', title: '还没有来信', sub: '去发现灵魂匹配吧', to: '/match', action: '去看看推荐' },
   sent: { icon: '✉', title: '还没有发出过信件', sub: '写下你的第一封信', to: '/write', action: '写一封信' },
   draft: { icon: '✎', title: '还没有草稿', sub: '未写完的信会自动留在这里' },
+  archived: { icon: '▤', title: '归档箱是空的', sub: '在信里点「归档」可以把信收进这里' },
 };
 
 export function InboxScreen() {
@@ -21,13 +22,14 @@ export function InboxScreen() {
   const { toast } = useUI();
   const [params] = useSearchParams();
   const initialTab = params.get('tab');
-  const [tab, setTab] = useState(initialTab === 'sent' || initialTab === 'draft' ? initialTab : 'inbox');
+  const [tab, setTab] = useState(['sent', 'draft', 'archived'].includes(initialTab) ? initialTab : 'inbox');
   const [confirmId, setConfirmId] = useState(null);
   const [fabMenu, setFabMenu] = useState(false);
 
   const inbox = useResource(() => lettersApi.getInbox(0), []);
   const sent = useResource(() => lettersApi.getSent(0), []);
   const drafts = useResource(() => draftsApi.getDrafts(0), []);
+  const archived = useResource(() => lettersApi.getArchived(0), []);
 
   const draftList = drafts.data || [];
   const confirmDraft = draftList.find((d) => d._id === confirmId);
@@ -68,7 +70,18 @@ export function InboxScreen() {
     }
   }
 
-  const cur = tab === 'inbox' ? inbox : tab === 'sent' ? sent : drafts;
+  const cur = tab === 'inbox' ? inbox : tab === 'sent' ? sent : tab === 'archived' ? archived : drafts;
+
+  async function unarchive(id) {
+    try {
+      await lettersApi.unarchiveLetter(id);
+      toast('已放回收件箱 ✦');
+      archived.reload();
+      inbox.reload();
+    } catch {
+      /* 异常已由 client 层 toast */
+    }
+  }
   const list = cur.data || [];
   const cfg = EMPTY[tab];
 
@@ -79,8 +92,9 @@ export function InboxScreen() {
         <div className={'seg-tab' + (tab === 'inbox' ? ' active' : '')} onClick={() => setTab('inbox')}>收件箱</div>
         <div className={'seg-tab' + (tab === 'sent' ? ' active' : '')} onClick={() => setTab('sent')}>已发出</div>
         <div className={'seg-tab' + (tab === 'draft' ? ' active' : '')} onClick={() => setTab('draft')}>
-          草稿箱{draftList.length > 0 && <span className="seg-count">{draftList.length}</span>}
+          草稿{draftList.length > 0 && <span className="seg-count">{draftList.length}</span>}
         </div>
+        <div className={'seg-tab' + (tab === 'archived' ? ' active' : '')} onClick={() => setTab('archived')}>归档</div>
       </div>
       <div className="page-scroll" style={{ padding: '12px 16px 24px' }} key={tab}>
         <div className="tab-fade">
@@ -94,6 +108,14 @@ export function InboxScreen() {
           ) : tab === 'draft' ? (
             list.map((d) => (
               <DraftCard key={d._id} draft={d} onClick={() => writeFromDraft(d)} onDelete={(id) => setConfirmId(id)} />
+            ))
+          ) : tab === 'archived' ? (
+            list.map((l) => (
+              <div key={l._id} className="archived-item">
+                <EnvelopeCard letter={l}
+                  onClick={() => navigate(`/letter/${l._id}`, { state: { name: l.senderNickname } })} />
+                <div className="archived-restore" onClick={() => unarchive(l._id)}>↩ 取消归档，放回收件箱</div>
+              </div>
             ))
           ) : (
             list.map((l) => (
