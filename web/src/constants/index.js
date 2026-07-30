@@ -22,7 +22,7 @@ export const EMOTION_FEELINGS = {
 
 export const VISIBILITY_OPTIONS = [
   { key: 'private', icon: '🔒', label: '仅自己' },
-  { key: 'friends', icon: '✉', label: '笔友' },
+  { key: 'friends', icon: '💌', label: '笔友' },
   { key: 'public', icon: '🌍', label: '公开' },
 ];
 export const VISIBILITY_LABEL = { private: '仅自己', friends: '笔友可见', public: '公开' };
